@@ -1,16 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "CtrlK Panel Extension",
-  "version": "1.0.0",
+  "name": "CtrlK",
+  "version": "0.0.1",
   "description": "按下 Ctrl + K 弹出面板的浏览器扩展。",
-  "permissions": ["tabs", "bookmarks"],
+  "permissions": ["tabs", "bookmarks", "commands", "windows"],
   "background": {
-    "service_worker": "./dist/background.js"
+    "service_worker": "dist/background.js"
   },
   "commands": {
     "open-panel": {
       "suggested_key": {
-        "default": "Ctrl+K"
+        "default": "Ctrl+K",
+		"mac": "Command+K"
       },
       "description": "弹出搜索面板面板"
     }
@@ -27,7 +28,7 @@
   ,
   "web_accessible_resources": [
     {
-      "resources": ["dist/index.html", "dist/*.js", "dist/*.css", "public/vite.svg"],
+      "resources": ["dist/*"],
       "matches": ["<all_urls>"]
     }
   ]
