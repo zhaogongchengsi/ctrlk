@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "CtrlK Panel Extension",
+  "version": "1.0.0",
+  "description": "按下 Ctrl + K 弹出面板的浏览器扩展。",
+  "permissions": ["tabs", "bookmarks"],
+  "background": {
+    "service_worker": "./dist/background.js"
+  },
+  "commands": {
+    "open-panel": {
+      "suggested_key": {
+        "default": "Ctrl+K"
+      },
+      "description": "弹出搜索面板面板"
+    }
+  },
+  "action": {
+    "default_popup": "dist/index.html",
+    "default_icon": {
+      "16": "dist/vite.svg"
+    }
+  },
+  "icons": {
+    "16": "dist/vite.svg"
+  }
+  ,
+  "web_accessible_resources": [
+    {
+      "resources": ["dist/index.html", "dist/*.js", "dist/*.css", "public/vite.svg"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
