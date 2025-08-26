@@ -2,5 +2,3 @@
 
 export const OPEN_DIALOG = 'CTRL_K_OPEN_DIALOG';
 export const CLOSE_DIALOG = 'CTRL_K_CLOSE_DIALOG';
-export const TOGGLE_DIALOG = 'CTRL_K_TOGGLE_DIALOG';
-export const BLUR_DIALOG = 'CTRL_K_PANEL_BLUR';

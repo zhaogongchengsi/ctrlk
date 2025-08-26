@@ -188,17 +188,6 @@ class CtrlKRuntime {
 		this.dialogs.clear();
 	}
 }
-declare global {
-	interface Window {
-		CtrlK: {
-			runtime: CtrlKRuntime;
-			openDialog: (id: string, src: string, options?: DialogOptions) => CtrlKDialog;
-			closeDialog: (id: string) => boolean;
-			toggleDialog: (id: string) => boolean;
-			postMessage: (id: string, message: unknown, targetOrigin?: string) => boolean;
-		};
-	}
-}
 
 // 创建全局实例
 const runtime = new CtrlKRuntime();
@@ -207,7 +196,6 @@ window.addEventListener("message", (event) => {
 	const data = event.data;
 	console.log("Received message:", data);
 	if (data && typeof data === "object" && "type" in data) {
-		console.log("Message data:", data);
 		if (data.type === OPEN_DIALOG) {
 			runtime.openDialog(data.id, data.src);
 			return;
