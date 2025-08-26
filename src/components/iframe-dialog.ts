@@ -241,6 +241,7 @@ class CtrlKDialog extends HTMLElement {
         return;
       }
 
+	  console.log('Received message from iframe:', event.data);
       // 处理高度变化通知
       if (event.data && event.data.type === 'HEIGHT_CHANGE_NOTIFICATION') {
         // 重新获取高度并更新
