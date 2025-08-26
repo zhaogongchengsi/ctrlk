@@ -1,7 +1,14 @@
 import { CLOSE_DIALOG, OPEN_DIALOG } from "./constant";
+import { searchManager } from "./search/search-manager";
+
 // 存储当前显示弹窗的标签页ID
 let currentDialogTabId: number | null = null;
 const id = 'ctrl-k-dialog';
+
+// 初始化搜索引擎
+searchManager.initialize().catch(error => {
+  console.error('Failed to initialize search manager:', error);
+});
 // 监听快捷键命令
 chrome.commands.onCommand.addListener(async (command) => {
 	if (command === "open-panel") {
