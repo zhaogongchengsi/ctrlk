@@ -1,70 +1,81 @@
 console.log('Background script running');
 
-// 存储面板窗口的ID
-let panelWindowId: number | null = null;
+// 存储当前显示弹窗的标签页ID
+let currentDialogTabId: number | null = null;
 
 // 监听快捷键命令
 chrome.commands.onCommand.addListener(async (command) => {
 	if (command === "open-panel") {
-		console.log('Creating window...');
+		console.log('Opening CtrlK panel...');
 		try {
-			// 如果窗口已存在，先关闭它
-			if (panelWindowId) {
-				try {
-					await chrome.windows.remove(panelWindowId);
-				} catch {
-					// 窗口可能已经被手动关闭
-				}
-				panelWindowId = null;
+			// 获取当前活动标签页
+			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+			
+			if (!tab.id) {
+				console.error('No active tab found');
+				return;
 			}
 
-			// 获取当前活动窗口的信息
-			const currentWindow = await chrome.windows.getCurrent();
-			const popupWidth = 600;
-			const popupHeight = 400;
-			
-			// 计算相对于当前浏览器窗口的居中位置
-			const left = (currentWindow.left || 0) + Math.round(((currentWindow.width || 800) - popupWidth) / 2);
-			const top = (currentWindow.top || 0) + Math.round(((currentWindow.height || 600) - popupHeight) / 2);
-			
-			// 创建一个新的弹窗窗口
-			const window = await chrome.windows.create({
-				url: chrome.runtime.getURL('dist/index.html'),
-				type: 'popup',
-				width: popupWidth,
-				height: popupHeight,
-				left: left,
-				top: top,
-				focused: true
+			// 如果当前已有弹窗在其他标签页，先关闭
+			if (currentDialogTabId && currentDialogTabId !== tab.id) {
+				await closeDialogInTab(currentDialogTabId);
+			}
+
+			// 在当前标签页中切换弹窗
+			await chrome.tabs.sendMessage(tab.id, {
+				type: 'TOGGLE_CTRLK_PANEL',
+				panelUrl: chrome.runtime.getURL('index.html')
 			});
-			
-			panelWindowId = window?.id || null;
-			console.log('Window created:', window);
+
+			currentDialogTabId = tab.id;
+			console.log('Panel toggled in tab:', tab.id);
 		} catch (error) {
-			console.error('Error creating window:', error);
+			console.error('Error opening panel:', error);
 		}
 	}
 });
 
-// 监听窗口焦点变化
-chrome.windows.onFocusChanged.addListener(async (windowId) => {
-	// 如果面板窗口失去焦点（windowId 不是面板窗口的ID，且不是chrome.windows.WINDOW_ID_NONE）
-	if (panelWindowId && windowId !== panelWindowId && windowId !== chrome.windows.WINDOW_ID_NONE) {
-		try {
-			// 关闭面板窗口
-			await chrome.windows.remove(panelWindowId);
-			panelWindowId = null;
-			console.log('Panel window closed due to focus loss');
-		} catch (error) {
-			console.error('Error closing window on focus loss:', error);
-		}
+// 关闭指定标签页中的弹窗
+async function closeDialogInTab(tabId: number) {
+	try {
+		await chrome.tabs.sendMessage(tabId, {
+			type: 'CLOSE_CTRLK_PANEL'
+		});
+	} catch {
+		// 标签页可能已关闭或无法访问
+		console.log('Could not close dialog in tab:', tabId);
+	}
+}
+
+// 监听标签页切换
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+	// 当切换到其他标签页时，关闭当前弹窗
+	if (currentDialogTabId && currentDialogTabId !== activeInfo.tabId) {
+		await closeDialogInTab(currentDialogTabId);
+		currentDialogTabId = null;
 	}
 });
 
-// 监听窗口关闭事件
-chrome.windows.onRemoved.addListener((windowId) => {
-	if (windowId === panelWindowId) {
-		panelWindowId = null;
-		console.log('Panel window was closed');
+// 监听标签页关闭
+chrome.tabs.onRemoved.addListener((tabId) => {
+	if (tabId === currentDialogTabId) {
+		currentDialogTabId = null;
+		console.log('Dialog tab was closed');
+	}
+});
+
+// 监听来自内容脚本的消息
+chrome.runtime.onMessage.addListener((message, sender) => {
+	if (message.type === 'PANEL_CLOSED' && sender.tab?.id === currentDialogTabId) {
+		currentDialogTabId = null;
+		console.log('Panel was closed by user');
+	}
+	
+	if (message.type === 'PANEL_BLUR' && sender.tab?.id === currentDialogTabId) {
+		// 弹窗失去焦点，关闭它
+		if (currentDialogTabId) {
+			closeDialogInTab(currentDialogTabId);
+			currentDialogTabId = null;
+		}
 	}
 });

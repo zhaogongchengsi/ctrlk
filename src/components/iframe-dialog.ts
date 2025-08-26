@@ -215,6 +215,11 @@ class CtrlKDialog extends HTMLElement {
     }
   }
 
+  // 检查是否打开
+  isOpen(): boolean {
+    return this.dialog.open;
+  }
+
   // 设置 iframe 的 src
   setSrc(src: string) {
     this.setAttribute('src', src);

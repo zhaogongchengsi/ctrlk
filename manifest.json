@@ -41,7 +41,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "dist/*"
+        "dist/*",
+        "runtime-api.js"
       ],
       "matches": [
         "<all_urls>"
