@@ -88,7 +88,7 @@ export class SearchEngine {
     }
   }
 
-  search(query: string, limit = 50): SearchResult[] {
+  search(query: string): SearchResult[] {
     if (!this.isInitialized) {
       console.warn('Search index not initialized');
       return [];
@@ -99,7 +99,7 @@ export class SearchEngine {
     }
 
     try {
-      const results = this.index.search(query.trim(), limit, {
+      const results = this.index.search(query.trim(), {
         enrich: true
       });
 

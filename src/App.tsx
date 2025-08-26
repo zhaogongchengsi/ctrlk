@@ -14,13 +14,10 @@ function App() {
       setResults([]);
       return;
     }
-
-    // setLoading(true);
     try {
-      const searchResults = await debouncedSearch(searchQuery, 20);
+      const searchResults = await debouncedSearch(searchQuery);
       console.log("Search results:", searchResults);
       setResults(searchResults);
-      // setSelectedIndex(0);
     } catch (error) {
       console.error("Search failed:", error);
       setResults([]);

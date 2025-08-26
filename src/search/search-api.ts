@@ -12,8 +12,7 @@ export interface SearchStats {
  * 搜索书签和标签页
  */
 export async function searchBookmarksAndTabs(
-  query: string,
-  limit = 50
+  query: string
 ): Promise<SearchResult[]> {
   if (!query.trim()) {
     return [];
@@ -22,8 +21,7 @@ export async function searchBookmarksAndTabs(
   try {
     const request: SearchRequest = {
       type: 'SEARCH_BOOKMARKS_TABS',
-      query: query.trim(),
-      limit
+      query: query.trim()
     };
 
     const response = await chrome.runtime.sendMessage(request) as SearchResponse;
@@ -66,13 +64,13 @@ export async function openSearchResult(result: SearchResult): Promise<void> {
 export function createDebouncedSearch(delay = 300) {
   let timeoutId: NodeJS.Timeout;
   
-  return (query: string, limit?: number): Promise<SearchResult[]> => {
+  return (query: string): Promise<SearchResult[]> => {
     return new Promise((resolve, reject) => {
       clearTimeout(timeoutId);
       
       timeoutId = setTimeout(async () => {
         try {
-          const results = await searchBookmarksAndTabs(query, limit);
+          const results = await searchBookmarksAndTabs(query);
           resolve(results);
         } catch (error) {
           reject(error);
