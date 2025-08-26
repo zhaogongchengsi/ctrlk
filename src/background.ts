@@ -23,7 +23,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 				await closeDialogInTab(currentDialogTabId);
 			}
 
-			const panelUrl = chrome.runtime.getURL('index.html');
+			const panelUrl = chrome.runtime.getURL('dist/index.html');
 			// 在当前标签页中切换弹窗
 			openDialogInTab(tab.id, panelUrl);
 
