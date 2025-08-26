@@ -1,8 +1,10 @@
+import { CLOSE_DIALOG, OPEN_DIALOG } from "./constant";
+
 console.log('Background script running');
 
 // 存储当前显示弹窗的标签页ID
 let currentDialogTabId: number | null = null;
-
+const id = 'ctrl-k-dialog';
 // 监听快捷键命令
 chrome.commands.onCommand.addListener(async (command) => {
 	if (command === "open-panel") {
@@ -21,11 +23,9 @@ chrome.commands.onCommand.addListener(async (command) => {
 				await closeDialogInTab(currentDialogTabId);
 			}
 
+			const panelUrl = chrome.runtime.getURL('index.html');
 			// 在当前标签页中切换弹窗
-			await chrome.tabs.sendMessage(tab.id, {
-				type: 'TOGGLE_CTRLK_PANEL',
-				panelUrl: chrome.runtime.getURL('index.html')
-			});
+			openDialogInTab(tab.id, panelUrl);
 
 			currentDialogTabId = tab.id;
 			console.log('Panel toggled in tab:', tab.id);
@@ -35,16 +35,23 @@ chrome.commands.onCommand.addListener(async (command) => {
 	}
 });
 
+function sendMessageToTab(tabId: number, message: unknown) {
+	chrome.tabs.sendMessage(tabId, message, (res) => {
+		if (chrome.runtime.lastError) {
+			console.warn("发送失败:", chrome.runtime.lastError.message);
+		} else {
+			console.log("content-script 响应:", res);
+		}
+	});
+}
+
+function openDialogInTab(tabId: number, src: string) {
+	sendMessageToTab(tabId, { type: OPEN_DIALOG, src, id });
+}
+
 // 关闭指定标签页中的弹窗
 async function closeDialogInTab(tabId: number) {
-	try {
-		await chrome.tabs.sendMessage(tabId, {
-			type: 'CLOSE_CTRLK_PANEL'
-		});
-	} catch {
-		// 标签页可能已关闭或无法访问
-		console.log('Could not close dialog in tab:', tabId);
-	}
+	sendMessageToTab(tabId, { type: CLOSE_DIALOG });
 }
 
 // 监听标签页切换
@@ -65,17 +72,17 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // 监听来自内容脚本的消息
-chrome.runtime.onMessage.addListener((message, sender) => {
-	if (message.type === 'PANEL_CLOSED' && sender.tab?.id === currentDialogTabId) {
-		currentDialogTabId = null;
-		console.log('Panel was closed by user');
-	}
+// chrome.runtime.onMessage.addListener((message, sender) => {
+// 	if (message.type === CLOSE_DIALOG && sender.tab?.id === currentDialogTabId) {
+// 		currentDialogTabId = null;
+// 		console.log('Panel was closed by user');
+// 	}
 	
-	if (message.type === 'PANEL_BLUR' && sender.tab?.id === currentDialogTabId) {
-		// 弹窗失去焦点，关闭它
-		if (currentDialogTabId) {
-			closeDialogInTab(currentDialogTabId);
-			currentDialogTabId = null;
-		}
-	}
-});
+// 	if (message.type === BLUR_DIALOG && sender.tab?.id === currentDialogTabId) {
+// 		// 弹窗失去焦点，关闭它
+// 		if (currentDialogTabId) {
+// 			closeDialogInTab(currentDialogTabId);
+// 			currentDialogTabId = null;
+// 		}
+// 	}
+// });

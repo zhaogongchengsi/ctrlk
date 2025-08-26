@@ -42,7 +42,8 @@
     {
       "resources": [
         "dist/*",
-        "runtime-api.js"
+        "runtime-api.js",
+        "index.html"
       ],
       "matches": [
         "<all_urls>"

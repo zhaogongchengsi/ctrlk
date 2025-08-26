@@ -122,7 +122,7 @@ class CtrlKDialog extends HTMLElement {
 
     // 配置 iframe
     this.iframe.style.display = 'none';
-    this.iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+    // this.iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
     
     this.shadow.appendChild(style);
     this.shadow.appendChild(this.dialog);
