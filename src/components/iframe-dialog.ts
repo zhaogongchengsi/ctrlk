@@ -28,7 +28,8 @@ class CtrlKDialog extends HTMLElement {
     style.textContent = `
       :host {
         --dialog-width: 600px;
-        --dialog-height: 400px;
+        --dialog-min-height: 0;
+        --dialog-max-height: 66.67vh;
         --dialog-bg: rgba(0, 0, 0, 0.5);
         --content-bg: white;
         --border-radius: 12px;
@@ -40,12 +41,14 @@ class CtrlKDialog extends HTMLElement {
         border-radius: var(--border-radius);
         padding: 0;
         width: var(--dialog-width);
-        height: var(--dialog-height);
+        min-height: var(--dialog-min-height);
+        max-height: var(--dialog-max-height);
         max-width: 90vw;
-        max-height: 90vh;
         background: var(--content-bg);
         box-shadow: var(--shadow);
         position: relative;
+        resize: vertical;
+        overflow: hidden;
       }
 
       dialog::backdrop {
@@ -53,53 +56,12 @@ class CtrlKDialog extends HTMLElement {
         backdrop-filter: blur(4px);
       }
 
-      .dialog-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 12px 16px;
-        border-bottom: 1px solid #e5e7eb;
-        background: #f9fafb;
-        border-radius: var(--border-radius) var(--border-radius) 0 0;
-      }
-
-      .dialog-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: #374151;
-        margin: 0;
-      }
-
-      .close-button {
-        background: none;
-        border: none;
-        font-size: 24px;
-        color: #6b7280;
-        cursor: pointer;
-        padding: 4px;
-        border-radius: 4px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 32px;
-        height: 32px;
-      }
-
-      .close-button:hover {
-        background: #e5e7eb;
-        color: #374151;
-      }
-
       iframe {
         width: 100%;
-        height: calc(100% - 60px);
-        border: none;
-        border-radius: 0 0 var(--border-radius) var(--border-radius);
-      }
-
-      .no-header iframe {
         height: 100%;
+        border: none;
         border-radius: var(--border-radius);
+        display: block;
       }
 
       .loading {
@@ -111,12 +73,8 @@ class CtrlKDialog extends HTMLElement {
       }
     `;
 
-    // 创建 dialog 结构
+    // 创建 dialog 结构 - 移除头部，只保留 iframe
     this.dialog.innerHTML = `
-      <div class="dialog-header">
-        <h3 class="dialog-title"></h3>
-        <button class="close-button" type="button">&times;</button>
-      </div>
       <div class="loading">Loading...</div>
     `;
 
@@ -132,13 +90,7 @@ class CtrlKDialog extends HTMLElement {
   }
 
   private setupEventListeners() {
-    const closeButton = this.shadow.querySelector('.close-button');
     const loading = this.shadow.querySelector('.loading');
-
-    // 关闭按钮
-    closeButton?.addEventListener('click', () => {
-      this.close();
-    });
 
     // ESC 键关闭
     this.dialog.addEventListener('keydown', (e) => {
@@ -161,6 +113,9 @@ class CtrlKDialog extends HTMLElement {
         loadingElement.style.display = 'none';
       }
       this.iframe.style.display = 'block';
+      
+      // 自适应内容高度
+      this.adjustHeight();
     });
 
     // iframe 加载错误
@@ -220,6 +175,29 @@ class CtrlKDialog extends HTMLElement {
     return this.dialog.open;
   }
 
+  // 自适应内容高度
+  private adjustHeight() {
+    try {
+      // 尝试获取 iframe 内容的高度
+      const iframeDocument = this.iframe.contentDocument;
+      if (iframeDocument) {
+        const contentHeight = iframeDocument.documentElement.scrollHeight;
+        const maxHeight = window.innerHeight * 0.67; // 窗口高度的 2/3
+        const minHeight = 200;
+        
+        // 计算合适的高度
+        const targetHeight = Math.min(Math.max(contentHeight + 40, minHeight), maxHeight);
+        
+        // 设置 dialog 高度
+        this.dialog.style.height = `${targetHeight}px`;
+      }
+    } catch {
+      // 跨域情况下无法获取内容高度，使用默认高度
+      console.log('Cannot access iframe content height due to CORS policy');
+      this.dialog.style.height = '400px';
+    }
+  }
+
   // 设置 iframe 的 src
   setSrc(src: string) {
     this.setAttribute('src', src);
@@ -234,24 +212,6 @@ class CtrlKDialog extends HTMLElement {
   postMessage(message: unknown, targetOrigin = '*') {
     if (this.iframe.contentWindow) {
       this.iframe.contentWindow.postMessage(message, targetOrigin);
-    }
-  }
-
-  // 隐藏标题栏
-  hideHeader() {
-    const header = this.shadow.querySelector('.dialog-header') as HTMLElement;
-    if (header) {
-      header.style.display = 'none';
-      this.dialog.classList.add('no-header');
-    }
-  }
-
-  // 显示标题栏
-  showHeader() {
-    const header = this.shadow.querySelector('.dialog-header') as HTMLElement;
-    if (header) {
-      header.style.display = 'flex';
-      this.dialog.classList.remove('no-header');
     }
   }
 }

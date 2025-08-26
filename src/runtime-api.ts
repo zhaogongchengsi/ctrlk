@@ -25,7 +25,6 @@ interface DialogOptions {
 	width?: string;
 	height?: string;
 	title?: string;
-	hideHeader?: boolean;
 }
 
 class CtrlKRuntime {
@@ -97,10 +96,6 @@ class CtrlKRuntime {
 
 		if (options.title) {
 			dialog.setAttribute('title', options.title);
-		}
-
-		if (options.hideHeader) {
-			dialog.hideHeader();
 		}
 
 		// 添加事件监听
