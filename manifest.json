@@ -3,7 +3,12 @@
   "name": "CtrlK",
   "version": "0.0.1",
   "description": "按下 Ctrl + K 弹出面板的浏览器扩展。",
-  "permissions": ["tabs", "bookmarks", "commands", "windows"],
+  "permissions": [
+    "tabs",
+    "bookmarks",
+    "commands",
+    "windows"
+  ],
   "background": {
     "service_worker": "dist/background.js"
   },
@@ -11,7 +16,7 @@
     "open-panel": {
       "suggested_key": {
         "default": "Ctrl+K",
-		"mac": "Command+K"
+        "mac": "Command+K"
       },
       "description": "弹出搜索面板面板"
     }
@@ -24,12 +29,23 @@
   },
   "icons": {
     "16": "dist/vite.svg"
-  }
-  ,
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["dist/content-script.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["dist/*"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "dist/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }
