@@ -9,10 +9,8 @@ class CtrlKDialog extends HTMLElement {
   private shadow: ShadowRoot;
   private dialog: HTMLDialogElement;
   private iframe: HTMLIFrameElement;
-  private resizeObserver?: ResizeObserver;
-  private mutationObserver?: MutationObserver;
-  private heightCheckInterval?: NodeJS.Timeout;
   private windowResizeHandler?: () => void;
+  private messageHandler?: (event: MessageEvent) => void;
 
   constructor() {
     super();
@@ -121,8 +119,8 @@ class CtrlKDialog extends HTMLElement {
       // 自适应内容高度
       this.adjustHeight();
       
-      // 开始监听高度变化
-      this.startHeightWatching();
+      // 开始监听来自子页面的高度变化通知
+      this.startMessageListening();
     });
 
     // iframe 加载错误
@@ -193,86 +191,78 @@ class CtrlKDialog extends HTMLElement {
       const iframeDocument = this.iframe.contentDocument;
       if (iframeDocument) {
         const contentHeight = iframeDocument.documentElement.scrollHeight;
-        const maxHeight = window.innerHeight * 0.67; // 窗口高度的 2/3
+        const viewportHeight = window.innerHeight;
+        const maxHeight = Math.floor(viewportHeight * 0.8); // 最大高度为视口高度的 80%
         const minHeight = 200;
         
-        // 计算合适的高度
-        const targetHeight = Math.min(Math.max(contentHeight + 40, minHeight), maxHeight);
+        // 计算合适的高度，并确保不超过最大高度
+        const targetHeight = Math.min(Math.max(contentHeight + 20, minHeight), maxHeight);
         
         // 设置 dialog 高度
         this.dialog.style.height = `${targetHeight}px`;
+        
+        // 调整位置确保 dialog 在视口内
+        this.adjustPosition(targetHeight);
       }
     } catch {
       // 跨域情况下无法获取内容高度，使用默认高度
       console.log('Cannot access iframe content height due to CORS policy');
-      this.dialog.style.height = '400px';
+      const defaultHeight = 400;
+      const maxHeight = Math.floor(window.innerHeight * 0.8);
+      const finalHeight = Math.min(defaultHeight, maxHeight);
+      
+      this.dialog.style.height = `${finalHeight}px`;
+      this.adjustPosition(finalHeight);
     }
   }
 
-  // 开始监听高度变化
-  private startHeightWatching() {
-    try {
-      const iframeDocument = this.iframe.contentDocument;
-      if (iframeDocument) {
-        // 使用 ResizeObserver 监听 body 尺寸变化
-        this.resizeObserver = new ResizeObserver(() => {
-          this.adjustHeight();
-        });
-        
-        // 监听 body 和 documentElement
-        this.resizeObserver.observe(iframeDocument.body);
-        this.resizeObserver.observe(iframeDocument.documentElement);
+  // 调整 dialog 位置，确保在视口内
+  private adjustPosition(dialogHeight: number) {
+    const viewportHeight = window.innerHeight;
+    const dialogRect = this.dialog.getBoundingClientRect();
+    
+    // 如果 dialog 底部超出视口，调整位置
+    if (dialogRect.bottom > viewportHeight) {
+      const newTop = Math.max(20, viewportHeight - dialogHeight - 20);
+      this.dialog.style.top = `${newTop}px`;
+      this.dialog.style.position = 'fixed';
+    } else {
+      // 恢复居中位置
+      this.dialog.style.top = '';
+      this.dialog.style.position = '';
+    }
+  }
 
-        // 使用 MutationObserver 监听 DOM 变化
-        this.mutationObserver = new MutationObserver(() => {
-          // 延迟执行，等待DOM渲染完成
-          setTimeout(() => this.adjustHeight(), 100);
-        });
-
-        this.mutationObserver.observe(iframeDocument.body, {
-          childList: true,
-          subtree: true,
-          attributes: true,
-          attributeFilter: ['style', 'class']
-        });
-
-        // 定期检查高度变化（作为备用方案）
-        this.heightCheckInterval = setInterval(() => {
-          this.adjustHeight();
-        }, 1000);
-
-      } else {
-        // 跨域情况，只能定期检查
-        this.heightCheckInterval = setInterval(() => {
-          this.adjustHeight();
-        }, 2000);
+  // 开始监听来自子页面的消息
+  private startMessageListening() {
+    this.messageHandler = (event: MessageEvent) => {
+      // 确保消息来自当前的 iframe
+      if (event.source !== this.iframe.contentWindow) {
+        return;
       }
-    } catch {
-      console.log('Cannot set up height watching due to CORS policy');
-      // 跨域情况，使用定期检查作为备用方案
-      this.heightCheckInterval = setInterval(() => {
+
+      // 处理高度变化通知
+      if (event.data && event.data.type === 'HEIGHT_CHANGE_NOTIFICATION') {
+        // 重新获取高度并更新
         this.adjustHeight();
-      }, 2000);
+      }
+    };
+
+    // 监听来自 iframe 的消息
+    window.addEventListener('message', this.messageHandler);
+  }
+
+  // 停止监听消息
+  private stopMessageListening() {
+    if (this.messageHandler) {
+      window.removeEventListener('message', this.messageHandler);
+      this.messageHandler = undefined;
     }
   }
 
   // 停止监听高度变化
   private stopHeightWatching() {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = undefined;
-    }
-
-    if (this.mutationObserver) {
-      this.mutationObserver.disconnect();
-      this.mutationObserver = undefined;
-    }
-
-    if (this.heightCheckInterval) {
-      clearInterval(this.heightCheckInterval);
-      this.heightCheckInterval = undefined;
-    }
-
+    this.stopMessageListening();
     this.removeWindowResizeListener();
   }
 
@@ -309,6 +299,11 @@ class CtrlKDialog extends HTMLElement {
     if (this.iframe.contentWindow) {
       this.iframe.contentWindow.postMessage(message, targetOrigin);
     }
+  }
+
+  // 公共方法：触发高度重新计算
+  refreshHeight() {
+    this.adjustHeight();
   }
 }
 

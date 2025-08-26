@@ -54,6 +54,13 @@ class CtrlKRuntime {
 			if (event.data.type === 'CTRLK_COMMAND') {
 				this.handleCommand(event.data);
 			}
+
+			// 处理高度变化通知
+			if (event.data.type === 'CTRLK_HEIGHT_NOTIFY') {
+				if (event.data.dialogId) {
+					this.notifyHeightChange(event.data.dialogId);
+				}
+			}
 		});
 	}
 
@@ -155,6 +162,19 @@ class CtrlKRuntime {
 	}
 
 	/**
+	 * 通知指定 dialog 高度可能发生变化，重新计算高度
+	 */
+	notifyHeightChange(id: string): boolean {
+		const dialog = this.dialogs.get(id);
+		if (dialog) {
+			// 触发高度重新计算
+			dialog.refreshHeight();
+			return true;
+		}
+		return false;
+	}
+
+	/**
 	 * 向指定 dialog 的 iframe 发送消息
 	 */
 	postMessageToDialog(id: string, message: unknown, targetOrigin = '*'): boolean {
@@ -191,6 +211,30 @@ class CtrlKRuntime {
 
 // 创建全局实例
 const runtime = new CtrlKRuntime();
+
+// 声明全局窗口方法类型
+declare global {
+	interface Window {
+		notifyParentHeightChange: (dialogId?: string) => void;
+		notifyDialogHeightChange: (dialogId: string) => boolean;
+	}
+}
+
+// 全局方法：通知父页面高度可能发生变化
+window.notifyParentHeightChange = (dialogId?: string) => {
+	// 如果在 iframe 中，向父页面发送高度变化通知
+	if (window.parent !== window) {
+		window.parent.postMessage({
+			type: 'HEIGHT_CHANGE_NOTIFICATION',
+			dialogId: dialogId
+		}, '*');
+	}
+};
+
+// 全局方法：通知当前页面的 dialog 高度变化
+window.notifyDialogHeightChange = (dialogId: string) => {
+	return runtime.notifyHeightChange(dialogId);
+};
 
 window.addEventListener("message", (event) => {
 	const data = event.data;
