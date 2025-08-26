@@ -2,7 +2,10 @@
  * IframeDialog Web Component
  * 独立封装的 dialog 组件，使用 iframe 承载子页面
  */
-class IframeDialog extends HTMLElement {
+
+export  const  CtrlKDialogName = 'ctrlk-dialog';
+
+class CtrlKDialog extends HTMLElement {
   private shadow: ShadowRoot;
   private dialog: HTMLDialogElement;
   private iframe: HTMLIFrameElement;
@@ -249,6 +252,6 @@ class IframeDialog extends HTMLElement {
 }
 
 // 注册 Web Component
-customElements.define('iframe-dialog', IframeDialog);
+customElements.define(CtrlKDialogName, CtrlKDialog);
 
-export { IframeDialog };
+export { CtrlKDialog };

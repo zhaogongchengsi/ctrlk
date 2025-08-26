@@ -3,7 +3,7 @@
  * 提供页面注入的运行时 API
  */
 
-import { IframeDialog } from './components/iframe-dialog';
+import { CtrlKDialog, CtrlKDialogName } from './components/iframe-dialog';
 
 interface CtrlKConfig {
   enableAutoClose?: boolean;
@@ -28,7 +28,7 @@ interface DialogOptions {
 }
 
 class CtrlKRuntime {
-  private dialogs: Map<string, IframeDialog> = new Map();
+	private dialogs: Map<string, CtrlKDialog> = new Map();
   private config: CtrlKConfig = {
     enableAutoClose: true,
     defaultWidth: '600px',
@@ -43,7 +43,7 @@ class CtrlKRuntime {
 
   private init() {
     // 确保 Web Component 已注册
-    if (!customElements.get('iframe-dialog')) {
+	  if (!customElements.get(CtrlKDialogName)) {
       // Web Component 会在导入时自动注册
     }
 
@@ -80,14 +80,14 @@ class CtrlKRuntime {
   /**
    * 创建并打开一个 iframe dialog
    */
-  openDialog(id: string, src: string, options: DialogOptions = {}): IframeDialog {
+	openDialog(id: string, src: string, options: DialogOptions = {}): CtrlKDialog {
     // 如果 dialog 已存在，先关闭
     if (this.dialogs.has(id)) {
       this.closeDialog(id);
     }
 
     // 创建新的 dialog
-    const dialog = document.createElement('iframe-dialog') as IframeDialog;
+		const dialog = document.createElement(CtrlKDialogName) as CtrlKDialog;
     
     // 设置属性
     dialog.setAttribute('src', src);
@@ -145,7 +145,7 @@ class CtrlKRuntime {
   /**
    * 获取指定的 dialog 实例
    */
-  getDialog(id: string): IframeDialog | undefined {
+	getDialog(id: string): CtrlKDialog | undefined {
     return this.dialogs.get(id);
   }
 
@@ -198,7 +198,7 @@ declare global {
   interface Window {
     CtrlK: {
       runtime: CtrlKRuntime;
-      openDialog: (id: string, src: string, options?: DialogOptions) => IframeDialog;
+		openDialog: (id: string, src: string, options?: DialogOptions) => CtrlKDialog;
       closeDialog: (id: string) => boolean;
       toggleDialog: (id: string) => boolean;
       postMessage: (id: string, message: unknown, targetOrigin?: string) => boolean;
