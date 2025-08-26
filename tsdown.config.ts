@@ -7,6 +7,7 @@ export default ['./src/content-script.ts', './src/runtime-api.ts', './src/backgr
 		clean: false,
 		outputOptions: {
 			entryFileNames: '[name].js'
-		}
+		},
+		noExternal: ["flexsearch"]
 	})
 })
