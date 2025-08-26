@@ -203,16 +203,6 @@ declare global {
 // 创建全局实例
 const runtime = new CtrlKRuntime();
 
-// 暴露全局 API
-// window.CtrlK = {
-// 	runtime,
-// 	openDialog: (id: string, src: string, options?: DialogOptions) => runtime.openDialog(id, src, options),
-// 	closeDialog: (id: string) => runtime.closeDialog(id),
-// 	toggleDialog: (id: string) => runtime.toggleDialog(id),
-// 	postMessage: (id: string, message: unknown, targetOrigin = '*') =>
-// 		runtime.postMessageToDialog(id, message, targetOrigin)
-// };
-
 window.addEventListener("message", (event) => {
 	const data = event.data;
 	console.log("Received message:", data);
