@@ -1,7 +1,4 @@
 import { CLOSE_DIALOG, OPEN_DIALOG } from "./constant";
-
-console.log('Background script running');
-
 // 存储当前显示弹窗的标签页ID
 let currentDialogTabId: number | null = null;
 const id = 'ctrl-k-dialog';
