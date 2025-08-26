@@ -1,4 +1,4 @@
-import { Document } from 'flexsearch';
+import Fuse from 'fuse.js';
 
 export interface SearchResult {
   id: string;
@@ -23,42 +23,54 @@ interface TabData {
   favIconUrl?: string;
 }
 
+interface IndexDocument {
+  id: string;
+  title: string;
+  url: string;
+  type: "bookmark" | "tab";
+  favicon?: string;
+  searchText: string;
+}
+
 export class SearchEngine {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private index: Document<any>;
+  private fuse: Fuse<IndexDocument> | null = null;
+  private documents: IndexDocument[] = [];
   private isInitialized = false;
 
   constructor() {
-    this.index = new Document({
-      tokenize: "forward",
-      resolution: 9,
-      context: {
-        resolution: 5,
-        depth: 3,
-        bidirectional: true
-      },
-      document: {
-        id: "id",
-        index: [
-          {
-            field: "title",
-            tokenize: "forward",
-            resolution: 9
-          },
-          {
-            field: "url", 
-            tokenize: "strict",
-            resolution: 5
-          },
-          {
-            field: "searchText", // 组合搜索字段
-            tokenize: "forward", 
-            resolution: 7
-          }
-        ],
-        store: ["title", "url", "type", "favicon", "searchText"]
-      }
-    });
+    // 初始化时创建空的Fuse实例
+    this.initializeFuse();
+  }
+
+  private initializeFuse(): void {
+    // Fuse.js 配置，优化模糊搜索
+    const fuseOptions = {
+      keys: [
+        {
+          name: 'title',
+          weight: 0.6 // 标题最重要
+        },
+        {
+          name: 'searchText',
+          weight: 0.3 // 组合搜索文本
+        },
+        {
+          name: 'url',
+          weight: 0.1 // URL权重最低
+        }
+      ],
+      threshold: 0.6, // 模糊匹配阈值 (0-1，越小越严格)
+      distance: 100, // 搜索距离
+      minMatchCharLength: 1, // 最小匹配字符长度
+      includeScore: true, // 包含匹配分数
+      includeMatches: true, // 包含匹配信息
+      findAllMatches: true, // 查找所有匹配
+      ignoreLocation: true, // 忽略位置
+      shouldSort: true, // 按分数排序
+      useExtendedSearch: true // 启用扩展搜索语法
+    };
+
+    this.fuse = new Fuse(this.documents, fuseOptions);
   }
 
   async buildIndex(): Promise<void> {
@@ -71,57 +83,28 @@ export class SearchEngine {
         this.getTabs()
       ]);
 
-      // 重新初始化索引
-      this.index = new Document({
-        tokenize: "forward",
-        resolution: 9,
-        context: {
-          resolution: 5,
-          depth: 3,
-          bidirectional: true
-        },
-        document: {
-          id: "id",
-          index: [
-            {
-              field: "title",
-              tokenize: "forward",
-              resolution: 9
-            },
-            {
-              field: "url", 
-              tokenize: "strict",
-              resolution: 5
-            },
-            {
-              field: "searchText", // 组合搜索字段
-              tokenize: "forward", 
-              resolution: 7
-            }
-          ],
-          store: ["title", "url", "type", "favicon", "searchText"]
-        }
-      });
+      // 清空现有文档
+      this.documents = [];
 
-      // 添加书签到索引
+      // 添加书签到文档
       for (const bookmark of bookmarks) {
         const searchText = this.createSearchText(bookmark.title, bookmark.url);
-        const doc = {
+        const doc: IndexDocument = {
           id: `bookmark-${bookmark.id}`,
           title: bookmark.title,
           url: bookmark.url,
           type: "bookmark",
           searchText
         };
-        this.index.add(doc);
+        this.documents.push(doc);
       }
 
-      // 添加标签页到索引
+      // 添加标签页到文档
       for (const tab of tabs) {
         const title = tab.title || 'Untitled';
         const url = tab.url || '';
         const searchText = this.createSearchText(title, url);
-        const doc = {
+        const doc: IndexDocument = {
           id: `tab-${tab.id}`,
           title,
           url,
@@ -129,8 +112,11 @@ export class SearchEngine {
           favicon: tab.favIconUrl || '',
           searchText
         };
-        this.index.add(doc);
+        this.documents.push(doc);
       }
+
+      // 重新初始化Fuse索引
+      this.initializeFuse();
 
       this.isInitialized = true;
       console.log(`Index built with ${bookmarks.length} bookmarks and ${tabs.length} tabs`);
@@ -141,7 +127,7 @@ export class SearchEngine {
   }
 
   search(query: string, limit = 50): SearchResult[] {
-    if (!this.isInitialized) {
+    if (!this.isInitialized || !this.fuse) {
       console.warn('Search index not initialized');
       return [];
     }
@@ -153,18 +139,23 @@ export class SearchEngine {
     try {
       const cleanQuery = query.trim().toLowerCase();
       
-      // 多种搜索策略
+      // 使用Fuse.js进行多种搜索策略
       const searchStrategies = [
-        // 1. 精确短语搜索
-        { query: `"${cleanQuery}"`, boost: 100 },
-        // 2. 普通搜索
-        { query: cleanQuery, boost: 50 },
-        // 3. 模糊搜索（通过部分匹配）
-        { query: cleanQuery.split(' ').join(' '), boost: 30 },
-        // 4. 单词搜索
-        ...cleanQuery.split(' ').filter(word => word.length > 1).map(word => ({
+        // 1. 精确搜索
+        { query: `="${cleanQuery}"`, boost: 100, description: 'exact' },
+        // 2. 普通模糊搜索
+        { query: cleanQuery, boost: 80, description: 'normal' },
+        // 3. 单词分解搜索
+        ...cleanQuery.split(/\s+/).filter(word => word.length > 1).map(word => ({
           query: word,
-          boost: 20
+          boost: 60,
+          description: 'word'
+        })),
+        // 4. 前缀搜索（Fuse.js扩展语法）
+        ...cleanQuery.split(/\s+/).filter(word => word.length > 2).map(word => ({
+          query: `^${word}`,
+          boost: 70,
+          description: 'prefix'
         }))
       ];
 
@@ -172,38 +163,31 @@ export class SearchEngine {
 
       for (const strategy of searchStrategies) {
         try {
-          const results = this.index.search(strategy.query, {
-            limit: limit * 2,
-            enrich: true
-          });
+          const fuseResults = this.fuse.search(strategy.query, { limit: limit * 2 });
 
-          if (Array.isArray(results)) {
-            for (const fieldResult of results) {
-              if (fieldResult && Array.isArray(fieldResult.result)) {
-                for (const item of fieldResult.result) {
-                  if (item && item.doc) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const doc = item.doc as any;
-                    
-                    const existingResult = allResults.get(doc.id);
-                    const baseScore = this.calculateScore(cleanQuery, doc, strategy.boost);
-                    
-                    if (!existingResult || baseScore > (existingResult.score || 0)) {
-                      const result: SearchResult = {
-                        id: doc.id,
-                        type: doc.type as "bookmark" | "tab",
-                        title: doc.title,
-                        url: doc.url,
-                        favicon: doc.favicon,
-                        score: baseScore,
-                        snippet: this.generateSnippet(cleanQuery, doc)
-                      };
-                      
-                      allResults.set(doc.id, result);
-                    }
-                  }
-                }
-              }
+          for (const fuseResult of fuseResults) {
+            const doc = fuseResult.item;
+            const fuseScore = fuseResult.score || 0;
+            
+            const existingResult = allResults.get(doc.id);
+            
+            // 计算综合分数（结合Fuse分数和自定义分数）
+            const customScore = this.calculateScore(cleanQuery, doc, strategy.boost);
+            const fuseWeight = (1 - fuseScore) * 100; // Fuse分数越低越好，转换为越高越好
+            const finalScore = customScore + fuseWeight;
+            
+            if (!existingResult || finalScore > (existingResult.score || 0)) {
+              const result: SearchResult = {
+                id: doc.id,
+                type: doc.type,
+                title: doc.title,
+                url: doc.url,
+                favicon: doc.favicon,
+                score: finalScore,
+                snippet: this.generateSnippet(cleanQuery, doc)
+              };
+              
+              allResults.set(doc.id, result);
             }
           }
         } catch (strategyError) {
@@ -267,8 +251,7 @@ export class SearchEngine {
     });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private calculateScore(query: string, doc: any, boost = 1): number {
+    private calculateScore(query: string, doc: IndexDocument, boost = 1): number {
     const queryLower = query.toLowerCase();
     const titleLower = doc.title.toLowerCase();
     const urlLower = doc.url.toLowerCase();
@@ -276,24 +259,16 @@ export class SearchEngine {
 
     let score = 0;
 
-    // 精确匹配加分
+    // 标题精确匹配（最高优先级）
     if (titleLower === queryLower) {
-      score += 200;
+      score += 500;
     } else if (titleLower.includes(queryLower)) {
-      score += 100;
+      score += 200;
     }
 
-    if (urlLower.includes(queryLower)) {
-      score += 50;
-    }
-
-    if (searchTextLower.includes(queryLower)) {
-      score += 30;
-    }
-
-    // 开头匹配加分
+    // 标题开头匹配（高优先级）
     if (titleLower.startsWith(queryLower)) {
-      score += 80;
+      score += 150;
     }
 
     // 单词匹配加分
@@ -306,15 +281,22 @@ export class SearchEngine {
           score += 40;
         } else if (titleWord.includes(queryWord)) {
           score += 20;
-        } else if (this.calculateLevenshteinDistance(queryWord, titleWord) <= 2) {
-          score += 15; // 模糊匹配
         }
       }
     }
 
+    // URL匹配（较低优先级）
+    if (urlLower.includes(queryLower)) {
+      score += 30;
+    }
+
+    if (searchTextLower.includes(queryLower)) {
+      score += 20;
+    }
+
     // 类型加权
     if (doc.type === "tab") {
-      score += 10; // 优先显示当前标签页
+      score += 15; // 优先显示当前标签页
     }
 
     // URL域名匹配
@@ -342,8 +324,7 @@ export class SearchEngine {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private generateSnippet(query: string, doc: any, maxLength = 100): string {
+  private generateSnippet(query: string, doc: IndexDocument, maxLength = 100): string {
     const text = `${doc.title} ${doc.url}`.toLowerCase();
     const queryLower = query.toLowerCase();
     
@@ -362,39 +343,6 @@ export class SearchEngine {
     return snippet.substring(0, maxLength);
   }
 
-  private calculateLevenshteinDistance(str1: string, str2: string): number {
-    const matrix = [];
-    
-    if (str1.length === 0) return str2.length;
-    if (str2.length === 0) return str1.length;
-    
-    // 创建矩阵
-    for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i];
-    }
-    
-    for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j;
-    }
-    
-    // 填充矩阵
-    for (let i = 1; i <= str2.length; i++) {
-      for (let j = 1; j <= str1.length; j++) {
-        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
-        } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1, // 替换
-            matrix[i][j - 1] + 1,     // 插入
-            matrix[i - 1][j] + 1      // 删除
-          );
-        }
-      }
-    }
-    
-    return matrix[str2.length][str1.length];
-  }
-
   private deduplicateResults(results: SearchResult[]): SearchResult[] {
     const seen = new Set<string>();
     return results.filter(result => {
@@ -409,7 +357,7 @@ export class SearchEngine {
   public getStats() {
     return {
       isInitialized: this.isInitialized,
-      indexSize: this.isInitialized ? 'Available' : 'Not available'
+      indexSize: this.isInitialized ? `${this.documents.length} documents` : 'Not available'
     };
   }
 }

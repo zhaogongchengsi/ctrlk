@@ -8,6 +8,6 @@ export default ['./src/content-script.ts', './src/runtime-api.ts', './src/backgr
 		outputOptions: {
 			entryFileNames: '[name].js'
 		},
-		noExternal: ["flexsearch"]
+		noExternal: ["fuse.js"]
 	})
 })
