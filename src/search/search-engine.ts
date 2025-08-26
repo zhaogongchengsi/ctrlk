@@ -17,7 +17,7 @@ interface BookmarkData {
 }
 
 interface TabData {
-  id: number;
+  id: string;
   title: string;
   url: string;
   favIconUrl?: string;
@@ -148,7 +148,7 @@ export class SearchEngine {
           for (const node of nodes) {
             if (node.url) {
               bookmarks.push({
-                id: node.id,
+                id: `bookmark:${node.id}`,
                 title: node.title || 'Untitled',
                 url: node.url
               });
@@ -171,7 +171,7 @@ export class SearchEngine {
         const tabData: TabData[] = tabs
           .filter(tab => tab.id !== undefined && tab.url)
           .map(tab => ({
-            id: tab.id!,
+			id: `tab:${tab.id!}`,
             title: tab.title || 'Untitled',
             url: tab.url!,
             favIconUrl: tab.favIconUrl
