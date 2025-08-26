@@ -72,17 +72,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // 监听来自内容脚本的消息
-// chrome.runtime.onMessage.addListener((message, sender) => {
-// 	if (message.type === CLOSE_DIALOG && sender.tab?.id === currentDialogTabId) {
-// 		currentDialogTabId = null;
-// 		console.log('Panel was closed by user');
-// 	}
-	
-// 	if (message.type === BLUR_DIALOG && sender.tab?.id === currentDialogTabId) {
-// 		// 弹窗失去焦点，关闭它
-// 		if (currentDialogTabId) {
-// 			closeDialogInTab(currentDialogTabId);
-// 			currentDialogTabId = null;
-// 		}
-// 	}
-// });
+chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
+	console.log("Background received message:", message);
+	sendResponse({ reply: "Hello from background!" });
+});
