@@ -45,7 +45,6 @@ function App() {
   const groupedResults = groupSearchResults(results);
 
   return (
-    <div className="w-full h-screen bg-transparent flex items-center justify-center">
       <CommandWrapper
         onSizeChange={handleSizeChange}
         debounceMs={150}
@@ -157,7 +156,6 @@ function App() {
           </CommandList>
         </Command>
       </CommandWrapper>
-    </div>
   );
 }
 
