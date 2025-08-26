@@ -194,7 +194,6 @@ const runtime = new CtrlKRuntime();
 
 window.addEventListener("message", (event) => {
 	const data = event.data;
-	console.log("Received message:", data);
 	if (data && typeof data === "object" && "type" in data) {
 		if (data.type === OPEN_DIALOG) {
 			runtime.openDialog(data.id, data.src);
