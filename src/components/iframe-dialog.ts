@@ -9,6 +9,10 @@ class CtrlKDialog extends HTMLElement {
   private shadow: ShadowRoot;
   private dialog: HTMLDialogElement;
   private iframe: HTMLIFrameElement;
+  private resizeObserver?: ResizeObserver;
+  private mutationObserver?: MutationObserver;
+  private heightCheckInterval?: NodeJS.Timeout;
+  private windowResizeHandler?: () => void;
 
   constructor() {
     super();
@@ -116,6 +120,9 @@ class CtrlKDialog extends HTMLElement {
       
       // 自适应内容高度
       this.adjustHeight();
+      
+      // 开始监听高度变化
+      this.startHeightWatching();
     });
 
     // iframe 加载错误
@@ -155,9 +162,13 @@ class CtrlKDialog extends HTMLElement {
   open() {
     this.dialog.showModal();
     this.dispatchEvent(new CustomEvent('dialog-open'));
+    
+    // 监听窗口大小变化
+    this.setupWindowResizeListener();
   }
 
   close() {
+    this.stopHeightWatching();
     this.dialog.close();
     this.dispatchEvent(new CustomEvent('dialog-close'));
   }
@@ -195,6 +206,91 @@ class CtrlKDialog extends HTMLElement {
       // 跨域情况下无法获取内容高度，使用默认高度
       console.log('Cannot access iframe content height due to CORS policy');
       this.dialog.style.height = '400px';
+    }
+  }
+
+  // 开始监听高度变化
+  private startHeightWatching() {
+    try {
+      const iframeDocument = this.iframe.contentDocument;
+      if (iframeDocument) {
+        // 使用 ResizeObserver 监听 body 尺寸变化
+        this.resizeObserver = new ResizeObserver(() => {
+          this.adjustHeight();
+        });
+        
+        // 监听 body 和 documentElement
+        this.resizeObserver.observe(iframeDocument.body);
+        this.resizeObserver.observe(iframeDocument.documentElement);
+
+        // 使用 MutationObserver 监听 DOM 变化
+        this.mutationObserver = new MutationObserver(() => {
+          // 延迟执行，等待DOM渲染完成
+          setTimeout(() => this.adjustHeight(), 100);
+        });
+
+        this.mutationObserver.observe(iframeDocument.body, {
+          childList: true,
+          subtree: true,
+          attributes: true,
+          attributeFilter: ['style', 'class']
+        });
+
+        // 定期检查高度变化（作为备用方案）
+        this.heightCheckInterval = setInterval(() => {
+          this.adjustHeight();
+        }, 1000);
+
+      } else {
+        // 跨域情况，只能定期检查
+        this.heightCheckInterval = setInterval(() => {
+          this.adjustHeight();
+        }, 2000);
+      }
+    } catch {
+      console.log('Cannot set up height watching due to CORS policy');
+      // 跨域情况，使用定期检查作为备用方案
+      this.heightCheckInterval = setInterval(() => {
+        this.adjustHeight();
+      }, 2000);
+    }
+  }
+
+  // 停止监听高度变化
+  private stopHeightWatching() {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+      this.resizeObserver = undefined;
+    }
+
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+      this.mutationObserver = undefined;
+    }
+
+    if (this.heightCheckInterval) {
+      clearInterval(this.heightCheckInterval);
+      this.heightCheckInterval = undefined;
+    }
+
+    this.removeWindowResizeListener();
+  }
+
+  // 设置窗口大小变化监听
+  private setupWindowResizeListener() {
+    this.windowResizeHandler = () => {
+      // 窗口大小变化时重新计算高度
+      setTimeout(() => this.adjustHeight(), 100);
+    };
+    
+    window.addEventListener('resize', this.windowResizeHandler);
+  }
+
+  // 移除窗口大小变化监听
+  private removeWindowResizeListener() {
+    if (this.windowResizeHandler) {
+      window.removeEventListener('resize', this.windowResizeHandler);
+      this.windowResizeHandler = undefined;
     }
   }
 
