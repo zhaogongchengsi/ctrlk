@@ -7,7 +7,6 @@ interface SearchResultGroupProps {
   title: string;
   icon: string;
   results: SearchResult[];
-  query?: string;
   onSelectResult: (result: SearchResult) => void;
   showSeparator?: boolean;
   maxResults?: number;
@@ -32,7 +31,6 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
   title,
   icon,
   results,
-  query,
   onSelectResult,
   showSeparator = false,
   maxResults,
@@ -61,7 +59,6 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
           <SearchResultItem
             key={result.id}
             result={result}
-            query={query}
             onSelect={onSelectResult}
           />
         ))}

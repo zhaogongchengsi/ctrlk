@@ -1,4 +1,3 @@
-import React from 'react';
 import { CommandList, CommandEmpty } from "@/components/ui/command";
 import { SearchResultGroup } from './SearchResultGroup';
 import { SearchSeparator } from './SearchSeparator';
@@ -12,21 +11,19 @@ interface GroupedSearchResults {
 
 interface SearchResultsListProps {
   results: GroupedSearchResults;
-  query?: string;
   onSelectResult: (result: SearchResult) => void;
   maxResultsPerGroup?: number;
   emptyMessage?: string;
   className?: string;
 }
 
-export const SearchResultsList: React.FC<SearchResultsListProps> = ({
+export default function SearchResultsList({
   results,
-  query,
   onSelectResult,
-  maxResultsPerGroup = 10,
-  emptyMessage = "没有找到匹配的结果",
-  className = ""
-}) => {
+  maxResultsPerGroup = 3,
+  emptyMessage = '暂无搜索结果',
+  className = '',
+}: SearchResultsListProps) {
   const { tabs, bookmarks, history } = results;
   const totalResults = tabs.length + bookmarks.length + history.length;
 
@@ -39,7 +36,6 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
         title="打开的标签页"
         icon="🔗"
         results={tabs}
-        query={query}
         onSelectResult={onSelectResult}
         maxResults={maxResultsPerGroup}
         showSeparator={false}
@@ -55,7 +51,6 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
         title="书签"
         icon="⭐"
         results={bookmarks}
-        query={query}
         onSelectResult={onSelectResult}
         maxResults={maxResultsPerGroup}
         showSeparator={false}
@@ -71,7 +66,6 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
         title="历史记录"
         icon="📚"
         results={history}
-        query={query}
         onSelectResult={onSelectResult}
         maxResults={maxResultsPerGroup}
         showSeparator={false}
@@ -85,6 +79,4 @@ export const SearchResultsList: React.FC<SearchResultsListProps> = ({
       )}
     </CommandList>
   );
-};
-
-export default SearchResultsList;
+}

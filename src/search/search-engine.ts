@@ -10,6 +10,16 @@ export interface SearchResult {
   score?: number;
   lastVisitTime?: number;
   visitCount?: number;
+  highlights?: {
+    title?: HighlightMatch[];
+    url?: HighlightMatch[];
+    searchText?: HighlightMatch[];
+  };
+}
+
+export interface HighlightMatch {
+  indices: [number, number];
+  value: string;
 }
 
 interface BookmarkData {
@@ -156,6 +166,27 @@ export class SearchEngine {
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private extractHighlights(fuseResult: any): SearchResult['highlights'] {
+    if (!fuseResult.matches) {
+      return undefined;
+    }
+
+    const highlights: SearchResult['highlights'] = {};
+
+    for (const match of fuseResult.matches) {
+      const key = match.key as 'title' | 'url' | 'searchText';
+      if (match.indices && match.indices.length > 0) {
+        highlights[key] = match.indices.map((indice: [number, number]) => ({
+          indices: indice,
+          value: match.value?.substring(indice[0], indice[1] + 1) || ''
+        }));
+      }
+    }
+
+    return Object.keys(highlights).length > 0 ? highlights : undefined;
+  }
+
   search(query: string, limit = 50): SearchResult[] {
     if (!this.isInitialized || !this.fuse) {
       console.warn('Search index not initialized');
@@ -207,6 +238,7 @@ export class SearchEngine {
             const finalScore = customScore + fuseWeight;
             
             if (!existingResult || finalScore > (existingResult.score || 0)) {
+              const highlights = this.extractHighlights(fuseResult);
               const result: SearchResult = {
                 id: doc.id,
                 type: doc.type,
@@ -215,6 +247,7 @@ export class SearchEngine {
                 favicon: doc.favicon,
                 score: finalScore,
                 snippet: this.generateSnippet(cleanQuery, doc),
+                highlights,
                 ...(doc.type === "history" && {
                   lastVisitTime: doc.lastVisitTime,
                   visitCount: doc.visitCount

@@ -1,57 +1,14 @@
 import React from 'react';
 import { CommandItem } from "@/components/ui/command";
 import { SEARCH_CONFIG } from '@/search/search-config';
+import { PreciseHighlightText } from './PreciseHighlightText';
 import type { SearchResult } from '@/search/search-api';
 
 interface SearchResultItemProps {
   result: SearchResult;
-  query?: string;
   onSelect: (result: SearchResult) => void;
   className?: string;
 }
-
-interface HighlightTextProps {
-  text: string;
-  query?: string;
-  className?: string;
-}
-
-// 高亮搜索关键词的组件
-const HighlightText: React.FC<HighlightTextProps> = ({ text, query, className = "" }) => {
-  if (!query || !query.trim()) {
-    return <span className={className}>{text}</span>;
-  }
-
-  const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 0);
-  
-  // 创建正则表达式来匹配所有搜索词
-  const regex = new RegExp(`(${searchTerms.map(term => 
-    term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  ).join('|')})`, 'gi');
-
-  const parts = text.split(regex);
-  
-  return (
-    <span className={className}>
-      {parts.map((part, index) => {
-        const isMatch = searchTerms.some(term => 
-          part.toLowerCase() === term.toLowerCase()
-        );
-        
-        return isMatch ? (
-          <mark 
-            key={index} 
-            className={SEARCH_CONFIG.HIGHLIGHT.className}
-          >
-            {part}
-          </mark>
-        ) : (
-          <span key={index}>{part}</span>
-        );
-      })}
-    </span>
-  );
-};
 
 // 获取图标组件
 const getResultIcon = (type: SearchResult['type']) => {
@@ -93,7 +50,6 @@ const extractDomain = (url: string): string => {
 
 export const SearchResultItem: React.FC<SearchResultItemProps> = ({
   result,
-  query,
   onSelect,
   className = ""
 }) => {
@@ -134,17 +90,19 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
       <div className="flex-1 min-w-0">
         {/* 标题 */}
         <div className="font-medium text-sm truncate">
-          <HighlightText 
+          <PreciseHighlightText 
             text={result.title || 'Untitled'} 
-            query={query}
+            highlights={result.highlights?.title}
+            highlightClassName={SEARCH_CONFIG.HIGHLIGHT.className}
           />
         </div>
         
         {/* 副标题/URL */}
         <div className="text-xs text-gray-500 truncate">
-          <HighlightText 
+          <PreciseHighlightText 
             text={domain || result.url} 
-            query={query}
+            highlights={result.highlights?.url}
+            highlightClassName={SEARCH_CONFIG.HIGHLIGHT.className}
           />
         </div>
 

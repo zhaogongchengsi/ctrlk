@@ -1,6 +1,6 @@
 import { Command, CommandInput } from "@/components/ui/command";
 import CommandWrapper from "./components/CommandWrapper";
-import { SearchResultsList } from "./components/SearchResultsList";
+import SearchResultsList from "./components/SearchResultsList";
 import { useState, useCallback, useRef } from "react";
 import { createDebouncedSearch, openSearchResult, groupSearchResults } from "./search/search-api";
 import type { SearchResult } from "./search/search-api";
@@ -10,7 +10,6 @@ const debouncedSearch = createDebouncedSearch(300);
 
 function App() {
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [currentQuery, setCurrentQuery] = useState<string>("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 使用输入框聚焦 Hook
@@ -32,7 +31,6 @@ function App() {
   });
 
   const performSearch = useCallback(async (searchQuery: string) => {
-    setCurrentQuery(searchQuery);
     if (searchQuery.length < 2) {
       setResults([]);
       return;
@@ -75,7 +73,6 @@ function App() {
           />
           <SearchResultsList
             results={groupedResults}
-            query={currentQuery}
             onSelectResult={handleResultSelect}
             maxResultsPerGroup={10}
             emptyMessage="没有找到匹配的结果"
