@@ -7,7 +7,8 @@
     "dev": "vite",
     "build:main": "tsdown --no-clean",
     "build:client": "tsc -b && vite build",
-    "build": "npm run build:client && npm run build:main",
+    "copy:manifest": "node scripts/copy-manifest.js",
+    "build": "npm run build:client && npm run build:main && npm run copy:manifest",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -2,18 +2,28 @@ import Fuse from 'fuse.js';
 
 export interface SearchResult {
   id: string;
-  type: "bookmark" | "tab";
+  type: "bookmark" | "tab" | "history";
   title: string;
   url: string;
   favicon?: string;
   snippet?: string;
   score?: number;
+  lastVisitTime?: number;
+  visitCount?: number;
 }
 
 interface BookmarkData {
   id: string;
   title: string;
   url: string;
+}
+
+interface HistoryData {
+  id: string;
+  title: string;
+  url: string;
+  lastVisitTime: number;
+  visitCount: number;
 }
 
 interface TabData {
@@ -27,9 +37,11 @@ interface IndexDocument {
   id: string;
   title: string;
   url: string;
-  type: "bookmark" | "tab";
+  type: "bookmark" | "tab" | "history";
   favicon?: string;
   searchText: string;
+  lastVisitTime?: number;
+  visitCount?: number;
 }
 
 export class SearchEngine {
@@ -77,10 +89,11 @@ export class SearchEngine {
     console.log('Building search index...');
     
     try {
-      // 并行获取书签和标签页数据
-      const [bookmarks, tabs] = await Promise.all([
+      // 并行获取书签、标签页和历史记录数据
+      const [bookmarks, tabs, history] = await Promise.all([
         this.getBookmarks(),
-        this.getTabs()
+        this.getTabs(),
+        this.getHistory()
       ]);
 
       // 清空现有文档
@@ -115,11 +128,28 @@ export class SearchEngine {
         this.documents.push(doc);
       }
 
+      // 添加历史记录到文档
+      for (const historyItem of history) {
+        const title = historyItem.title || 'Untitled';
+        const url = historyItem.url || '';
+        const searchText = this.createSearchText(title, url);
+        const doc: IndexDocument = {
+          id: `history-${historyItem.id}`,
+          title,
+          url,
+          type: "history",
+          searchText,
+          lastVisitTime: historyItem.lastVisitTime,
+          visitCount: historyItem.visitCount
+        };
+        this.documents.push(doc);
+      }
+
       // 重新初始化Fuse索引
       this.initializeFuse();
 
       this.isInitialized = true;
-      console.log(`Index built with ${bookmarks.length} bookmarks and ${tabs.length} tabs`);
+      console.log(`Index built with ${bookmarks.length} bookmarks, ${tabs.length} tabs, and ${history.length} history items`);
     } catch (error) {
       console.error('Failed to build search index:', error);
       throw error;
@@ -184,7 +214,11 @@ export class SearchEngine {
                 url: doc.url,
                 favicon: doc.favicon,
                 score: finalScore,
-                snippet: this.generateSnippet(cleanQuery, doc)
+                snippet: this.generateSnippet(cleanQuery, doc),
+                ...(doc.type === "history" && {
+                  lastVisitTime: doc.lastVisitTime,
+                  visitCount: doc.visitCount
+                })
               };
               
               allResults.set(doc.id, result);
@@ -251,6 +285,33 @@ export class SearchEngine {
     });
   }
 
+  private async getHistory(): Promise<HistoryData[]> {
+    return new Promise((resolve) => {
+      // 获取最近 1000 条历史记录，最多30天内的
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      
+      chrome.history.search({
+        text: '',
+        startTime: thirtyDaysAgo,
+        maxResults: 1000
+      }, (historyItems) => {
+        const historyData: HistoryData[] = historyItems
+          .filter(item => item.url && item.title)
+          .map((item, index) => ({
+            id: `${index}-${item.id || Date.now()}`,
+            title: item.title || 'Untitled',
+            url: item.url!,
+            lastVisitTime: item.lastVisitTime || 0,
+            visitCount: item.visitCount || 0
+          }))
+          // 按访问时间排序，最新的在前
+          .sort((a, b) => b.lastVisitTime - a.lastVisitTime);
+        
+        resolve(historyData);
+      });
+    });
+  }
+
     private calculateScore(query: string, doc: IndexDocument, boost = 1): number {
     const queryLower = query.toLowerCase();
     const titleLower = doc.title.toLowerCase();
@@ -297,6 +358,24 @@ export class SearchEngine {
     // 类型加权
     if (doc.type === "tab") {
       score += 15; // 优先显示当前标签页
+    } else if (doc.type === "history") {
+      // 历史记录根据访问频率和时间加权
+      if (doc.visitCount && doc.visitCount > 1) {
+        score += Math.min(doc.visitCount * 2, 20); // 访问次数加分，最多20分
+      }
+      
+      if (doc.lastVisitTime) {
+        const daysSinceVisit = (Date.now() - doc.lastVisitTime) / (24 * 60 * 60 * 1000);
+        if (daysSinceVisit < 1) {
+          score += 10; // 今天访问过
+        } else if (daysSinceVisit < 7) {
+          score += 5; // 一周内访问过
+        }
+      }
+      
+      score += 5; // 历史记录基础分
+    } else if (doc.type === "bookmark") {
+      score += 10; // 书签中等优先级
     }
 
     // URL域名匹配

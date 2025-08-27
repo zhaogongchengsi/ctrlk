@@ -82,7 +82,7 @@ function App() {
           <CommandInput 
             ref={inputRef}
             onValueChange={performSearch} 
-            placeholder="搜索书签和标签页..." 
+            placeholder="搜索书签、标签页和历史记录..." 
           />
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
@@ -174,6 +174,66 @@ function App() {
                         <div className="text-xs text-gray-500 truncate">
                           {formatted.subtitle}
                         </div>
+                      </div>
+                      {result.score && (
+                        <div className="text-xs text-gray-400 font-mono">
+                          {result.score.toFixed(0)}
+                        </div>
+                      )}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            )}
+
+            {/* 分隔符 */}
+            {(groupedResults.tabs.length > 0 || groupedResults.bookmarks.length > 0) && groupedResults.history.length > 0 && (
+              <CommandSeparator />
+            )}
+
+            {/* 历史记录组 */}
+            {groupedResults.history.length > 0 && (
+              <CommandGroup heading={`📚 历史记录 (${groupedResults.history.length})`}>
+                {groupedResults.history.map((result) => {
+                  const formatted = formatSearchResult(result);
+                  return (
+                    <CommandItem
+                      key={result.id}
+                      value={`${result.title} ${result.url}`}
+                      onSelect={() => handleResultSelect(result)}
+                      className="flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-100"
+                    >
+                      <div className="flex-shrink-0 w-5 h-5 flex items-center justify-center">
+                        {result.favicon ? (
+                          <img 
+                            src={result.favicon} 
+                            alt="" 
+                            className="w-4 h-4 rounded"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-sm">
+                            {formatted.icon}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate">
+                          {formatted.title}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {formatted.subtitle}
+                        </div>
+                        {result.lastVisitTime && (
+                          <div className="text-xs text-gray-400 truncate">
+                            {new Date(result.lastVisitTime).toLocaleDateString()}
+                            {result.visitCount && result.visitCount > 1 && (
+                              <span className="ml-1">• {result.visitCount} 次访问</span>
+                            )}
+                          </div>
+                        )}
                       </div>
                       {result.score && (
                         <div className="text-xs text-gray-400 font-mono">

@@ -107,10 +107,37 @@ export class SearchManager {
       });
     }
 
+    // 监听历史记录变化
+    if (chrome.history) {
+      chrome.history.onVisited.addListener(() => {
+        // 延迟刷新，避免频繁更新
+        this.debouncedRefreshIndex();
+      });
+
+      chrome.history.onVisitRemoved.addListener(() => {
+        this.refreshIndex();
+      });
+    }
+
     // 定期刷新索引（每5分钟）
     setInterval(() => {
       this.refreshIndex();
     }, 5 * 60 * 1000);
+  }
+
+  private debouncedRefreshIndex = this.debounce(() => {
+    this.refreshIndex();
+  }, 2000); // 2秒防抖
+
+  private debounce<T extends (...args: unknown[]) => void>(
+    func: T,
+    delay: number
+  ): (...args: Parameters<T>) => void {
+    let timeoutId: NodeJS.Timeout;
+    return (...args: Parameters<T>) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => func(...args), delay);
+    };
   }
 
   private async handleSearchRequest(
@@ -166,6 +193,12 @@ export class SearchManager {
             active: true
           });
         }
+      } else if (result.type === 'history') {
+        // 打开历史记录在新标签页
+        await chrome.tabs.create({
+          url: result.url,
+          active: true
+        });
       }
 
       sendResponse({ success: true });

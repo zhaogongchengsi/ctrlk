@@ -9,9 +9,9 @@ export interface SearchStats {
 }
 
 /**
- * 搜索书签和标签页
+ * 搜索书签、标签页和历史记录
  */
-export async function searchBookmarksAndTabs(
+export async function searchBookmarksTabsAndHistory(
   query: string
 ): Promise<SearchResult[]> {
   if (!query.trim()) {
@@ -36,6 +36,12 @@ export async function searchBookmarksAndTabs(
     throw error;
   }
 }
+
+/**
+ * 搜索书签和标签页（保持向后兼容）
+ * @deprecated 使用 searchBookmarksTabsAndHistory 代替
+ */
+export const searchBookmarksAndTabs = searchBookmarksTabsAndHistory;
 
 /**
  * 打开搜索结果
@@ -70,7 +76,7 @@ export function createDebouncedSearch(delay = 300) {
       
       timeoutId = setTimeout(async () => {
         try {
-          const results = await searchBookmarksAndTabs(query);
+          const results = await searchBookmarksTabsAndHistory(query);
           resolve(results);
         } catch (error) {
           reject(error);
@@ -86,8 +92,17 @@ export function createDebouncedSearch(delay = 300) {
 export function formatSearchResult(result: SearchResult) {
   const domain = extractDomain(result.url);
   
+  let icon = '🔗';
+  if (result.type === 'bookmark') {
+    icon = '⭐';
+  } else if (result.type === 'history') {
+    icon = '📚';
+  } else if (result.type === 'tab') {
+    icon = '🔗';
+  }
+  
   return {
-    icon: result.type === 'bookmark' ? '⭐' : '🔗',
+    icon,
     title: result.title || 'Untitled',
     subtitle: domain || result.url,
     favicon: result.favicon
@@ -100,8 +115,9 @@ export function formatSearchResult(result: SearchResult) {
 export function groupSearchResults(results: SearchResult[]) {
   const bookmarks = results.filter(r => r.type === 'bookmark');
   const tabs = results.filter(r => r.type === 'tab');
+  const history = results.filter(r => r.type === 'history');
   
-  return { bookmarks, tabs };
+  return { bookmarks, tabs, history };
 }
 
 /**
