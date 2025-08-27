@@ -96,34 +96,6 @@
 - **Chrome Extension Manifest V3**: 最新的扩展规范
 - **Chrome APIs**: tabs、bookmarks、commands 等 API
 
-## 📁 项目结构
-
-```
-CtrlK/
-├── src/
-│   ├── components/           # React 组件
-│   │   ├── ui/              # UI 基础组件
-│   │   ├── CommandWrapper.tsx
-│   │   └── iframe-dialog.ts
-│   ├── hooks/               # React Hooks
-│   │   └── useDialogLifecycle.ts
-│   ├── search/              # 搜索相关
-│   │   ├── search-api.ts    # 搜索 API
-│   │   ├── search-engine.ts # 搜索引擎
-│   │   └── search-manager.ts # 搜索管理器
-│   ├── lib/                 # 工具库
-│   ├── assets/              # 静态资源
-│   ├── App.tsx              # 主应用组件
-│   ├── main.tsx             # 应用入口
-│   ├── background.ts        # 后台脚本
-│   ├── content-script.ts    # 内容脚本
-│   └── runtime-api.ts       # 运行时 API
-├── public/                  # 公共资源
-├── dist/                    # 构建输出
-├── manifest.json            # 扩展清单文件
-└── package.json            # 项目配置
-```
-
 ## 🔧 开发指南
 
 ### 环境要求
