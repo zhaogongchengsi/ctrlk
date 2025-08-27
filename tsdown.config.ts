@@ -6,8 +6,9 @@ export default ['./src/content-script.ts', './src/runtime-api.ts', './src/backgr
 		format: ["iife"],
 		clean: false,
 		outputOptions: {
-			entryFileNames: '[name].js'
+			entryFileNames: '[name].js',
 		},
-		noExternal: ["fuse.js"]
+		noExternal: ["fuse.js"],
+		outDir: 'extension/dist',
 	})
 })
