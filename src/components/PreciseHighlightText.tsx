@@ -16,7 +16,7 @@ export const PreciseHighlightText: React.FC<PreciseHighlightTextProps> = ({
   text,
   highlights,
   className = "",
-  highlightClassName = "bg-yellow-200 text-yellow-900 px-1 rounded-sm font-medium"
+  highlightClassName = "bg-blue-50 text-blue-800 rounded-sm"
 }) => {
   // 如果没有高亮信息，直接返回原文本
   if (!highlights || highlights.length === 0) {
@@ -33,7 +33,17 @@ export const PreciseHighlightText: React.FC<PreciseHighlightTextProps> = ({
     <span className={className}>
       {parts.map((part, index) => (
         part.isHighlight ? (
-          <mark key={index} className={highlightClassName}>
+          <mark 
+            key={index} 
+            className={highlightClassName}
+            style={{ 
+              padding: 0, 
+              margin: 0, 
+              lineHeight: 'inherit',
+              verticalAlign: 'baseline',
+              display: 'inline'
+            }}
+          >
             {part.text}
           </mark>
         ) : (

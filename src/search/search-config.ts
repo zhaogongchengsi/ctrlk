@@ -52,7 +52,7 @@ export const SEARCH_CONFIG = {
   
   // 高亮样式
   HIGHLIGHT: {
-    className: 'bg-yellow-200 text-yellow-900 px-1 rounded-sm font-medium',
+    className: 'bg-blue-50 text-blue-800 rounded-sm',
     tag: 'mark',
   },
 } as const;
