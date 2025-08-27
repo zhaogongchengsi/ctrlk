@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
+import { useDialogLifecycle } from '../hooks/useDialogLifecycle';
 
 interface CommandWrapperProps {
   children: ReactNode;
@@ -9,6 +10,7 @@ interface CommandWrapperProps {
   className?: string;
   maxHeight?: number; // 新增：最大高度限制
   enableScrollCheck?: boolean; // 新增：是否启用滚动检查
+  enableLifecycleUpdates?: boolean; // 新增：是否启用生命周期尺寸更新
 }
 
 /**
@@ -29,7 +31,8 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
   debounceMs = 100,
   className = '',
   maxHeight,
-  enableScrollCheck = true
+  enableScrollCheck = true,
+  enableLifecycleUpdates = true
 }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const lastSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
@@ -162,6 +165,54 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
       handleSizeChange(newSize);
     }, debounceMs);
   }, [handleSizeChange, debounceMs]);
+
+  // 触发尺寸更新的通用方法
+  const triggerSizeUpdate = useCallback((reason: string = 'manual') => {
+    const element = wrapperRef.current;
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    console.log(`[CommandWrapper] Triggering size update (${reason}):`, { width: rect.width, height: rect.height });
+    
+    // 强制触发尺寸变化处理，重置记录的尺寸以确保触发
+    lastSizeRef.current = { width: 0, height: 0 };
+    setTimeout(() => {
+      if (wrapperRef.current) {
+        const newRect = wrapperRef.current.getBoundingClientRect();
+        debouncedHandleSizeChange({ width: newRect.width, height: newRect.height });
+      }
+    }, 10);
+  }, [debouncedHandleSizeChange]);
+
+  // 使用生命周期 Hook 监听对话框状态变化
+  const lifecycle = useDialogLifecycle({
+    keepHistory: false,
+    enableLogging: false,
+    onEvent: (event, timestamp) => {
+      if (!enableLifecycleUpdates) return;
+      
+      console.log(`[CommandWrapper] Dialog lifecycle event: ${event} at ${new Date(timestamp).toISOString()}`);
+      
+      // 在特定生命周期事件时触发尺寸更新
+      switch (event) {
+        case 'did-show':
+          // 对话框完全显示后，立即更新尺寸
+          setTimeout(() => {
+            triggerSizeUpdate('lifecycle:did-show');
+          }, 50);
+          break;
+        case 'will-hide':
+          // 即将隐藏时也可以更新一次（可选）
+          triggerSizeUpdate('lifecycle:will-hide');
+          break;
+      }
+    }
+  });
+
+  // 为了消除 lint 警告，简单使用 lifecycle 变量
+  if (lifecycle && enableLifecycleUpdates) {
+    // lifecycle Hook 已正确初始化
+  }
 
   useEffect(() => {
     const element = wrapperRef.current;

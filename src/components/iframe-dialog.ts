@@ -156,19 +156,53 @@ class CtrlKDialog extends HTMLElement {
 		}
 	}
 
+	// 向子页面发送生命周期通知
+	private notifyChildPageLifecycle(event: 'will-show' | 'will-hide' | 'did-show' | 'did-hide') {
+		if (this.iframe.contentWindow) {
+			const message = {
+				type: 'DIALOG_LIFECYCLE',
+				event: event,
+				timestamp: Date.now()
+			};
+			
+			try {
+				this.iframe.contentWindow.postMessage(message, '*');
+				console.log(`Notified child page: ${event}`);
+			} catch (error) {
+				console.warn('Failed to notify child page:', error);
+			}
+		}
+	}
+
 	// 公共方法
 	open() {
+		// 通知子页面即将被展示
+		this.notifyChildPageLifecycle('will-show');
+		
 		this.dialog.showModal();
 		this.dispatchEvent(new CustomEvent('dialog-open'));
 
 		// 监听窗口大小变化
 		this.setupWindowResizeListener();
+		
+		// 延迟通知子页面已经展示（确保 dialog 完全打开）
+		setTimeout(() => {
+			this.notifyChildPageLifecycle('did-show');
+		}, 100);
 	}
 
 	close() {
+		// 通知子页面即将失焦/隐藏
+		this.notifyChildPageLifecycle('will-hide');
+		
 		this.stopHeightWatching();
 		this.dialog.close();
 		this.dispatchEvent(new CustomEvent('dialog-close'));
+		
+		// 延迟通知子页面已经隐藏（确保 dialog 完全关闭）
+		setTimeout(() => {
+			this.notifyChildPageLifecycle('did-hide');
+		}, 100);
 	}
 
 	toggle() {
