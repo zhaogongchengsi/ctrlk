@@ -36,6 +36,13 @@ class CtrlKDialog extends HTMLElement {
         --content-bg: white;
         --border-radius: 12px;
         --shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9998;
+        pointer-events: none; /* 允许背景点击穿透到 dialog */
       }
 
       dialog {
@@ -48,10 +55,16 @@ class CtrlKDialog extends HTMLElement {
         max-width: 90vw;
         background: var(--content-bg);
         box-shadow: var(--shadow);
-        position: relative;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         resize: vertical;
         overflow: hidden;
         outline: none; /* 移除默认聚焦轮廓 */
+        z-index: 9999; /* 确保在最顶层 */
+        pointer-events: auto; /* 恢复dialog的点击事件 */
+        margin: 0; /* 移除默认margin */
       }
 
       dialog:focus {
@@ -213,6 +226,9 @@ class CtrlKDialog extends HTMLElement {
 
 	// 公共方法
 	open() {
+		// 禁用页面滚动
+		document.body.style.overflow = 'hidden';
+		
 		// 通知子页面即将被展示
 		this.notifyChildPageLifecycle('will-show');
 		
@@ -234,6 +250,9 @@ class CtrlKDialog extends HTMLElement {
 	}
 
 	close() {
+		// 恢复页面滚动
+		document.body.style.overflow = '';
+		
 		// 通知子页面即将失焦/隐藏
 		this.notifyChildPageLifecycle('will-hide');
 		
@@ -273,13 +292,12 @@ class CtrlKDialog extends HTMLElement {
 
 				// 计算合适的高度，并确保不超过最大高度
 				const targetHeight = Math.min(Math.max(contentHeight + 20, minHeight), maxHeight);
-				// 设置 dialog 高度
-				this.dialog.style.height = `${targetHeight}px`;
-
-				// 调整位置确保 dialog 在视口内
+				
+				// 调整位置和大小
 				this.adjustPosition(targetHeight);
-			} else {
-				this.dialog.style.height = `${height}px`;
+			} else if (height) {
+				// 如果提供了具体高度值，直接使用
+				this.adjustPosition(height);
 			}
 		} catch {
 			// 跨域情况下无法获取内容高度，使用默认高度
@@ -288,7 +306,6 @@ class CtrlKDialog extends HTMLElement {
 			const maxHeight = Math.floor(window.innerHeight * 0.8);
 			const finalHeight = Math.min(defaultHeight, maxHeight);
 
-			this.dialog.style.height = `${finalHeight}px`;
 			this.adjustPosition(finalHeight);
 		}
 	}
@@ -296,18 +313,30 @@ class CtrlKDialog extends HTMLElement {
 	// 调整 dialog 位置，确保在视口内
 	private adjustPosition(dialogHeight: number) {
 		const viewportHeight = window.innerHeight;
-		const dialogRect = this.dialog.getBoundingClientRect();
-
-		// 如果 dialog 底部超出视口，调整位置
-		if (dialogRect.bottom > viewportHeight) {
-			const newTop = Math.max(20, viewportHeight - dialogHeight - 20);
-			this.dialog.style.top = `${newTop}px`;
-			this.dialog.style.position = 'fixed';
+		const viewportWidth = window.innerWidth;
+		
+		// 获取当前 dialog 的宽度
+		const dialogWidth = this.dialog.offsetWidth;
+		
+		// 计算最大可用高度，留出一些边距
+		const maxAvailableHeight = viewportHeight - 40; // 上下各留 20px 边距
+		
+		// 如果内容高度超过可用高度，限制高度并启用滚动
+		if (dialogHeight > maxAvailableHeight) {
+			this.dialog.style.height = `${maxAvailableHeight}px`;
+			this.dialog.style.overflowY = 'auto';
 		} else {
-			// 恢复居中位置
-			this.dialog.style.top = '';
-			this.dialog.style.position = '';
+			this.dialog.style.height = `${dialogHeight}px`;
+			this.dialog.style.overflowY = 'hidden';
 		}
+		
+		// 确保水平居中，如果宽度超过视口宽度则调整
+		if (dialogWidth > viewportWidth - 40) {
+			this.dialog.style.width = `${viewportWidth - 40}px`;
+		}
+		
+		// 保持固定在视口中央的位置
+		// transform: translate(-50%, -50%) 已在 CSS 中设置，无需额外调整
 	}
 
 	// 开始监听来自子页面的消息
@@ -347,8 +376,15 @@ class CtrlKDialog extends HTMLElement {
 	// 设置窗口大小变化监听
 	private setupWindowResizeListener() {
 		this.windowResizeHandler = () => {
-			// 窗口大小变化时重新计算高度
-			setTimeout(() => this.adjustHeight(), 100);
+			// 窗口大小变化时重新计算高度和位置
+			setTimeout(() => {
+				// 获取当前高度
+				const currentHeight = this.dialog.offsetHeight;
+				// 重新调整位置，确保在视口内
+				this.adjustPosition(currentHeight);
+				// 重新计算内容高度
+				this.adjustHeight();
+			}, 100);
 		};
 
 		window.addEventListener('resize', this.windowResizeHandler);
