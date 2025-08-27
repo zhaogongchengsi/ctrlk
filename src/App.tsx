@@ -41,13 +41,22 @@ function App() {
     console.log('Command component size changed:', size);
   }, []);
 
+  // 处理内容高度变化的回调
+  const handleContentHeightChange = useCallback((contentHeight: number) => {
+    console.log('Command content height changed:', contentHeight);
+    // 这里可以添加额外的高度处理逻辑
+  }, []);
+
   // 分组搜索结果
   const groupedResults = groupSearchResults(results);
 
   return (
       <CommandWrapper
         onSizeChange={handleSizeChange}
+        onContentHeightChange={handleContentHeightChange}
         debounceMs={150}
+        maxHeight={600} // 设置最大高度为 600px
+        enableScrollCheck={true}
         className="rounded-lg border shadow-lg bg-white/95 backdrop-blur-sm w-full"
       >
         <Command className="w-full">

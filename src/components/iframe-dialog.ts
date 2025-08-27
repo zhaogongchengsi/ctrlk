@@ -3,31 +3,31 @@
  * 独立封装的 dialog 组件，使用 iframe 承载子页面
  */
 
-export  const  CtrlKDialogName = 'ctrlk-dialog';
+export const CtrlKDialogName = 'ctrlk-dialog';
 
 class CtrlKDialog extends HTMLElement {
-  private shadow: ShadowRoot;
-  private dialog: HTMLDialogElement;
-  private iframe: HTMLIFrameElement;
-  private windowResizeHandler?: () => void;
-  private messageHandler?: (event: MessageEvent) => void;
+	private shadow: ShadowRoot;
+	private dialog: HTMLDialogElement;
+	private iframe: HTMLIFrameElement;
+	private windowResizeHandler?: () => void;
+	private messageHandler?: (event: MessageEvent) => void;
 
-  constructor() {
-    super();
-    this.shadow = this.attachShadow({ mode: 'open' });
-    this.dialog = document.createElement('dialog');
-    this.iframe = document.createElement('iframe');
-    this.init();
-  }
+	constructor() {
+		super();
+		this.shadow = this.attachShadow({ mode: 'open' });
+		this.dialog = document.createElement('dialog');
+		this.iframe = document.createElement('iframe');
+		this.init();
+	}
 
-  static get observedAttributes() {
-    return ['src', 'width', 'height', 'title'];
-  }
+	static get observedAttributes() {
+		return ['src', 'width', 'height', 'title'];
+	}
 
-  private init() {
-    // 创建样式
-    const style = document.createElement('style');
-    style.textContent = `
+	private init() {
+		// 创建样式
+		const style = document.createElement('style');
+		style.textContent = `
       :host {
         --dialog-width: 600px;
         --dialog-min-height: 0;
@@ -75,237 +75,238 @@ class CtrlKDialog extends HTMLElement {
       }
     `;
 
-    // 创建 dialog 结构 - 移除头部，只保留 iframe
-    this.dialog.innerHTML = `
+		// 创建 dialog 结构 - 移除头部，只保留 iframe
+		this.dialog.innerHTML = `
       <div class="loading">Loading...</div>
     `;
 
-    // 配置 iframe
-    this.iframe.style.display = 'none';
-    // this.iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
-    
-    this.shadow.appendChild(style);
-    this.shadow.appendChild(this.dialog);
-    this.dialog.appendChild(this.iframe);
+		// 配置 iframe
+		this.iframe.style.display = 'none';
+		// this.iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
 
-    this.setupEventListeners();
-  }
+		this.shadow.appendChild(style);
+		this.shadow.appendChild(this.dialog);
+		this.dialog.appendChild(this.iframe);
 
-  private setupEventListeners() {
-    const loading = this.shadow.querySelector('.loading');
+		this.setupEventListeners();
+	}
 
-    // ESC 键关闭
-    this.dialog.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        this.close();
-      }
-    });
+	private setupEventListeners() {
+		const loading = this.shadow.querySelector('.loading');
 
-    // 点击背景关闭
-    this.dialog.addEventListener('click', (e) => {
-      if (e.target === this.dialog) {
-        this.close();
-      }
-    });
+		// ESC 键关闭
+		this.dialog.addEventListener('keydown', (e) => {
+			if (e.key === 'Escape') {
+				this.close();
+			}
+		});
 
-    // iframe 加载完成
-    this.iframe.addEventListener('load', () => {
-      const loadingElement = loading as HTMLElement;
-      if (loadingElement) {
-        loadingElement.style.display = 'none';
-      }
-      this.iframe.style.display = 'block';
-      
-      // 自适应内容高度
-      this.adjustHeight();
-      
-      // 开始监听来自子页面的高度变化通知
-      this.startMessageListening();
-    });
+		// 点击背景关闭
+		this.dialog.addEventListener('click', (e) => {
+			if (e.target === this.dialog) {
+				this.close();
+			}
+		});
 
-    // iframe 加载错误
-    this.iframe.addEventListener('error', () => {
-      const loadingElement = loading as HTMLElement;
-      if (loadingElement) {
-        loadingElement.textContent = 'Failed to load content';
-        loadingElement.style.color = '#ef4444';
-      }
-    });
-  }
+		// iframe 加载完成
+		this.iframe.addEventListener('load', () => {
+			const loadingElement = loading as HTMLElement;
+			if (loadingElement) {
+				loadingElement.style.display = 'none';
+			}
+			this.iframe.style.display = 'block';
 
-  attributeChangedCallback(name: string, oldValue: string, newValue: string) {
-    if (oldValue === newValue) return;
+			// 自适应内容高度
+			this.adjustHeight();
 
-    switch (name) {
-      case 'src':
-        this.iframe.src = newValue;
-        break;
-      case 'width':
-        this.dialog.style.setProperty('--dialog-width', newValue);
-        break;
-      case 'height':
-        this.dialog.style.setProperty('--dialog-height', newValue);
-        break;
-      case 'title': {
-        const titleElement = this.shadow.querySelector('.dialog-title');
-        if (titleElement) {
-          titleElement.textContent = newValue;
-        }
-        break;
-      }
-    }
-  }
+			// 开始监听来自子页面的高度变化通知
+			this.startMessageListening();
+		});
 
-  // 公共方法
-  open() {
-    this.dialog.showModal();
-    this.dispatchEvent(new CustomEvent('dialog-open'));
-    
-    // 监听窗口大小变化
-    this.setupWindowResizeListener();
-  }
+		// iframe 加载错误
+		this.iframe.addEventListener('error', () => {
+			const loadingElement = loading as HTMLElement;
+			if (loadingElement) {
+				loadingElement.textContent = 'Failed to load content';
+				loadingElement.style.color = '#ef4444';
+			}
+		});
+	}
 
-  close() {
-    this.stopHeightWatching();
-    this.dialog.close();
-    this.dispatchEvent(new CustomEvent('dialog-close'));
-  }
+	attributeChangedCallback(name: string, oldValue: string, newValue: string) {
+		if (oldValue === newValue) return;
 
-  toggle() {
-    if (this.dialog.open) {
-      this.close();
-    } else {
-      this.open();
-    }
-  }
+		switch (name) {
+			case 'src':
+				this.iframe.src = newValue;
+				break;
+			case 'width':
+				this.dialog.style.setProperty('--dialog-width', newValue);
+				break;
+			case 'height':
+				this.dialog.style.setProperty('--dialog-height', newValue);
+				break;
+			case 'title': {
+				const titleElement = this.shadow.querySelector('.dialog-title');
+				if (titleElement) {
+					titleElement.textContent = newValue;
+				}
+				break;
+			}
+		}
+	}
 
-  // 检查是否打开
-  isOpen(): boolean {
-    return this.dialog.open;
-  }
+	// 公共方法
+	open() {
+		this.dialog.showModal();
+		this.dispatchEvent(new CustomEvent('dialog-open'));
 
-  // 自适应内容高度
-  private adjustHeight() {
-    try {
-      // 尝试获取 iframe 内容的高度
-      const iframeDocument = this.iframe.contentDocument;
-      if (iframeDocument) {
-        const contentHeight = iframeDocument.documentElement.scrollHeight;
-        const viewportHeight = window.innerHeight;
-        const maxHeight = Math.floor(viewportHeight * 0.8); // 最大高度为视口高度的 80%
-        const minHeight = 200;
-        
-        // 计算合适的高度，并确保不超过最大高度
-        const targetHeight = Math.min(Math.max(contentHeight + 20, minHeight), maxHeight);
-        
-        // 设置 dialog 高度
-        this.dialog.style.height = `${targetHeight}px`;
-        
-        // 调整位置确保 dialog 在视口内
-        this.adjustPosition(targetHeight);
-      }
-    } catch {
-      // 跨域情况下无法获取内容高度，使用默认高度
-      console.log('Cannot access iframe content height due to CORS policy');
-      const defaultHeight = 400;
-      const maxHeight = Math.floor(window.innerHeight * 0.8);
-      const finalHeight = Math.min(defaultHeight, maxHeight);
-      
-      this.dialog.style.height = `${finalHeight}px`;
-      this.adjustPosition(finalHeight);
-    }
-  }
+		// 监听窗口大小变化
+		this.setupWindowResizeListener();
+	}
 
-  // 调整 dialog 位置，确保在视口内
-  private adjustPosition(dialogHeight: number) {
-    const viewportHeight = window.innerHeight;
-    const dialogRect = this.dialog.getBoundingClientRect();
-    
-    // 如果 dialog 底部超出视口，调整位置
-    if (dialogRect.bottom > viewportHeight) {
-      const newTop = Math.max(20, viewportHeight - dialogHeight - 20);
-      this.dialog.style.top = `${newTop}px`;
-      this.dialog.style.position = 'fixed';
-    } else {
-      // 恢复居中位置
-      this.dialog.style.top = '';
-      this.dialog.style.position = '';
-    }
-  }
+	close() {
+		this.stopHeightWatching();
+		this.dialog.close();
+		this.dispatchEvent(new CustomEvent('dialog-close'));
+	}
 
-  // 开始监听来自子页面的消息
-  private startMessageListening() {
-    this.messageHandler = (event: MessageEvent) => {
-      // 确保消息来自当前的 iframe
-      if (event.source !== this.iframe.contentWindow) {
-        return;
-      }
+	toggle() {
+		if (this.dialog.open) {
+			this.close();
+		} else {
+			this.open();
+		}
+	}
 
-	  console.log('Received message from iframe:', event.data);
-      // 处理高度变化通知
-      if (event.data && event.data.type === 'HEIGHT_CHANGE_NOTIFICATION') {
-        // 重新获取高度并更新
-        this.adjustHeight();
-      }
-    };
+	// 检查是否打开
+	isOpen(): boolean {
+		return this.dialog.open;
+	}
 
-    // 监听来自 iframe 的消息
-    window.addEventListener('message', this.messageHandler);
-  }
+	// 自适应内容高度
+	private adjustHeight(height?: number) {
+		try {
+			// 尝试获取 iframe 内容的高度
+			const iframeDocument = this.iframe.contentDocument;
+			if (iframeDocument && !height) {
+				const contentHeight = height ?? iframeDocument.documentElement.scrollHeight;
+				const viewportHeight = window.innerHeight;
+				const maxHeight = Math.floor(viewportHeight * 0.8); // 最大高度为视口高度的 80%
+				const minHeight = 200;
 
-  // 停止监听消息
-  private stopMessageListening() {
-    if (this.messageHandler) {
-      window.removeEventListener('message', this.messageHandler);
-      this.messageHandler = undefined;
-    }
-  }
+				// 计算合适的高度，并确保不超过最大高度
+				const targetHeight = Math.min(Math.max(contentHeight + 20, minHeight), maxHeight);
+				// 设置 dialog 高度
+				this.dialog.style.height = `${targetHeight}px`;
 
-  // 停止监听高度变化
-  private stopHeightWatching() {
-    this.stopMessageListening();
-    this.removeWindowResizeListener();
-  }
+				// 调整位置确保 dialog 在视口内
+				this.adjustPosition(targetHeight);
+			} else {
+				this.dialog.style.height = `${height}px`;
+			}
+		} catch {
+			// 跨域情况下无法获取内容高度，使用默认高度
+			console.log('Cannot access iframe content height due to CORS policy');
+			const defaultHeight = 400;
+			const maxHeight = Math.floor(window.innerHeight * 0.8);
+			const finalHeight = Math.min(defaultHeight, maxHeight);
 
-  // 设置窗口大小变化监听
-  private setupWindowResizeListener() {
-    this.windowResizeHandler = () => {
-      // 窗口大小变化时重新计算高度
-      setTimeout(() => this.adjustHeight(), 100);
-    };
-    
-    window.addEventListener('resize', this.windowResizeHandler);
-  }
+			this.dialog.style.height = `${finalHeight}px`;
+			this.adjustPosition(finalHeight);
+		}
+	}
 
-  // 移除窗口大小变化监听
-  private removeWindowResizeListener() {
-    if (this.windowResizeHandler) {
-      window.removeEventListener('resize', this.windowResizeHandler);
-      this.windowResizeHandler = undefined;
-    }
-  }
+	// 调整 dialog 位置，确保在视口内
+	private adjustPosition(dialogHeight: number) {
+		const viewportHeight = window.innerHeight;
+		const dialogRect = this.dialog.getBoundingClientRect();
 
-  // 设置 iframe 的 src
-  setSrc(src: string) {
-    this.setAttribute('src', src);
-  }
+		// 如果 dialog 底部超出视口，调整位置
+		if (dialogRect.bottom > viewportHeight) {
+			const newTop = Math.max(20, viewportHeight - dialogHeight - 20);
+			this.dialog.style.top = `${newTop}px`;
+			this.dialog.style.position = 'fixed';
+		} else {
+			// 恢复居中位置
+			this.dialog.style.top = '';
+			this.dialog.style.position = '';
+		}
+	}
 
-  // 获取 iframe 实例（用于高级操作）
-  getIframe() {
-    return this.iframe;
-  }
+	// 开始监听来自子页面的消息
+	private startMessageListening() {
+		this.messageHandler = (event: MessageEvent) => {
+			// 确保消息来自当前的 iframe
+			if (event.source !== this.iframe.contentWindow) {
+				return;
+			}
 
-  // 向 iframe 发送消息
-  postMessage(message: unknown, targetOrigin = '*') {
-    if (this.iframe.contentWindow) {
-      this.iframe.contentWindow.postMessage(message, targetOrigin);
-    }
-  }
+			console.log('Received message from iframe:', event.data);
+			// 处理高度变化通知
+			if (event.data && event.data.type === 'HEIGHT_CHANGE_NOTIFICATION') {
+				// 重新获取高度并更新
+				this.adjustHeight(event.data?.height);
+			}
+		};
 
-  // 公共方法：触发高度重新计算
-  refreshHeight() {
-    this.adjustHeight();
-  }
+		// 监听来自 iframe 的消息
+		window.addEventListener('message', this.messageHandler);
+	}
+
+	// 停止监听消息
+	private stopMessageListening() {
+		if (this.messageHandler) {
+			window.removeEventListener('message', this.messageHandler);
+			this.messageHandler = undefined;
+		}
+	}
+
+	// 停止监听高度变化
+	private stopHeightWatching() {
+		this.stopMessageListening();
+		this.removeWindowResizeListener();
+	}
+
+	// 设置窗口大小变化监听
+	private setupWindowResizeListener() {
+		this.windowResizeHandler = () => {
+			// 窗口大小变化时重新计算高度
+			setTimeout(() => this.adjustHeight(), 100);
+		};
+
+		window.addEventListener('resize', this.windowResizeHandler);
+	}
+
+	// 移除窗口大小变化监听
+	private removeWindowResizeListener() {
+		if (this.windowResizeHandler) {
+			window.removeEventListener('resize', this.windowResizeHandler);
+			this.windowResizeHandler = undefined;
+		}
+	}
+
+	// 设置 iframe 的 src
+	setSrc(src: string) {
+		this.setAttribute('src', src);
+	}
+
+	// 获取 iframe 实例（用于高级操作）
+	getIframe() {
+		return this.iframe;
+	}
+
+	// 向 iframe 发送消息
+	postMessage(message: unknown, targetOrigin = '*') {
+		if (this.iframe.contentWindow) {
+			this.iframe.contentWindow.postMessage(message, targetOrigin);
+		}
+	}
+
+	// 公共方法：触发高度重新计算
+	refreshHeight() {
+		this.adjustHeight();
+	}
 }
 
 // 注册 Web Component

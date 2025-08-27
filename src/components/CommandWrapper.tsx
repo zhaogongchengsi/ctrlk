@@ -4,8 +4,11 @@ import type { ReactNode } from 'react';
 interface CommandWrapperProps {
   children: ReactNode;
   onSizeChange?: (size: { width: number; height: number }) => void;
+  onContentHeightChange?: (contentHeight: number) => void; // 新增：内容高度变化回调
   debounceMs?: number;
   className?: string;
+  maxHeight?: number; // 新增：最大高度限制
+  enableScrollCheck?: boolean; // 新增：是否启用滚动检查
 }
 
 /**
@@ -22,21 +25,78 @@ interface CommandWrapperProps {
 const CommandWrapper: React.FC<CommandWrapperProps> = ({
   children,
   onSizeChange,
+  onContentHeightChange,
   debounceMs = 100,
-  className = ''
+  className = '',
+  maxHeight,
+  enableScrollCheck = true
 }) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const lastSizeRef = useRef<{ width: number; height: number }>({ width: 0, height: 0 });
+  const lastContentHeightRef = useRef<number>(0);
   const debounceTimerRef = useRef<number | null>(null);
 
+  // 计算精确的内容高度（包括所有子元素）
+  const calculateContentHeight = useCallback(() => {
+    const element = wrapperRef.current;
+    if (!element) return 0;
+
+    // 获取所有子元素的精确高度
+    let totalHeight = 0;
+    const children = Array.from(element.children);
+    
+    for (const child of children) {
+      const childRect = child.getBoundingClientRect();
+      const computedStyle = window.getComputedStyle(child as Element);
+      
+      // 计算包含 margin 的总高度
+      const marginTop = parseFloat(computedStyle.marginTop) || 0;
+      const marginBottom = parseFloat(computedStyle.marginBottom) || 0;
+      
+      totalHeight += childRect.height + marginTop + marginBottom;
+    }
+
+    // 添加容器的 padding
+    const containerStyle = window.getComputedStyle(element);
+    const paddingTop = parseFloat(containerStyle.paddingTop) || 0;
+    const paddingBottom = parseFloat(containerStyle.paddingBottom) || 0;
+    
+    totalHeight += paddingTop + paddingBottom;
+
+    return Math.ceil(totalHeight); // 向上取整避免滚动条
+  }, []);
+
+  // 检查是否有滚动条
+  const checkForScrollbars = useCallback(() => {
+    const element = wrapperRef.current;
+    if (!element || !enableScrollCheck) return false;
+
+    const hasVerticalScrollbar = element.scrollHeight > element.clientHeight;
+    const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
+
+    if (hasVerticalScrollbar || hasHorizontalScrollbar) {
+      console.warn('CommandWrapper detected scrollbars:', {
+        vertical: hasVerticalScrollbar,
+        horizontal: hasHorizontalScrollbar,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth
+      });
+      return true;
+    }
+    return false;
+  }, [enableScrollCheck]);
+
   // 通知父页面高度变化
-  const notifyParentHeightChange = useCallback(() => {
+  const notifyParentHeightChange = useCallback((height: number) => {
     // 检查是否在 iframe 环境中
     if (window.parent !== window) {
       try {
         window.parent.postMessage({
           type: 'HEIGHT_CHANGE_NOTIFICATION',
-          timestamp: Date.now()
+          timestamp: Date.now(),
+		  height,
         }, '*');
       } catch (error) {
         console.warn('Failed to notify parent window:', error);
@@ -58,19 +118,39 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
       return;
     }
 
+    // 计算精确的内容高度
+    const contentHeight = calculateContentHeight();
+    const lastContentHeight = lastContentHeightRef.current;
+
+    // 检查滚动条
+    const hasScrollbars = checkForScrollbars();
+
+    // 如果设置了最大高度，确保不超过限制
+    let finalHeight = contentHeight;
+    if (maxHeight && contentHeight > maxHeight) {
+      finalHeight = maxHeight;
+      console.log(`Content height ${contentHeight}px exceeds max height ${maxHeight}px, capped to ${finalHeight}px`);
+    }
+
     // 更新记录的尺寸
     lastSizeRef.current = newSize;
+    lastContentHeightRef.current = contentHeight;
 
     // 调用自定义回调
     if (onSizeChange) {
-      onSizeChange(newSize);
+      onSizeChange({ width: newSize.width, height: finalHeight });
+    }
+
+    // 调用内容高度变化回调
+    if (onContentHeightChange && Math.abs(contentHeight - lastContentHeight) >= 1) {
+      onContentHeightChange(finalHeight);
     }
 
     // 通知父页面
-    notifyParentHeightChange();
+    notifyParentHeightChange(finalHeight);
 
-    console.log(`CommandWrapper size changed: ${newSize.width}x${newSize.height}`);
-  }, [onSizeChange, notifyParentHeightChange]);
+    console.log(`CommandWrapper size changed: ${newSize.width}x${newSize.height}, content: ${contentHeight}px${hasScrollbars ? ' (has scrollbars)' : ''}`);
+  }, [onSizeChange, onContentHeightChange, notifyParentHeightChange, calculateContentHeight, checkForScrollbars, maxHeight]);
 
   // 防抖处理
   const debouncedHandleSizeChange = useCallback((newSize: { width: number; height: number }) => {
@@ -98,9 +178,24 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
     // 开始观察
     resizeObserver.observe(element);
 
-    // 初始化时获取当前尺寸
-    const rect = element.getBoundingClientRect();
-    lastSizeRef.current = { width: rect.width, height: rect.height };
+    // 初始化时获取当前尺寸和内容高度
+    setTimeout(() => {
+      const rect = element.getBoundingClientRect();
+      const contentHeight = calculateContentHeight();
+      
+      lastSizeRef.current = { width: rect.width, height: rect.height };
+      lastContentHeightRef.current = contentHeight;
+      
+      // 初始化时也通知一次
+      if (onContentHeightChange) {
+        onContentHeightChange(contentHeight);
+      }
+      
+      console.log('CommandWrapper initialized:', {
+        containerSize: { width: rect.width, height: rect.height },
+        contentHeight: contentHeight
+      });
+    }, 50); // 小延迟确保渲染完成
 
     // 清理函数
     return () => {
@@ -109,7 +204,7 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
       }
       resizeObserver.disconnect();
     };
-  }, [debouncedHandleSizeChange]);
+  }, [debouncedHandleSizeChange, calculateContentHeight, onContentHeightChange]);
 
   // 监听内容变化（作为 ResizeObserver 的补充）
   useEffect(() => {
@@ -162,7 +257,12 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
       ref={wrapperRef}
       className={`command-wrapper ${className}`}
       style={{
-        transition: 'all 0.2s ease-out' // 平滑的尺寸变化动画
+        transition: 'all 0.2s ease-out', // 平滑的尺寸变化动画
+        overflow: 'hidden', // 防止出现滚动条
+        height: 'auto', // 自动高度
+        minHeight: 'fit-content', // 最小高度适应内容
+        maxHeight: maxHeight ? `${maxHeight}px` : 'none', // 设置最大高度
+        boxSizing: 'border-box' // 确保 padding 和 border 包含在尺寸内
       }}
     >
       {children}
