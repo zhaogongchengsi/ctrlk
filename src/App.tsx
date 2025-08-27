@@ -1,14 +1,33 @@
-// import { Calculator, Calendar, CreditCard, Settings, Smile, User } from "lucide-react";
 import { Command, CommandEmpty, CommandInput, CommandList, CommandGroup, CommandItem, CommandSeparator } from "@/components/ui/command";
 import CommandWrapper from "./components/CommandWrapper";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { createDebouncedSearch, openSearchResult, groupSearchResults, formatSearchResult } from "./search/search-api";
 import type { SearchResult } from "./search/search-api";
+import { useInputFocus, useDialogLifecycle } from "./hooks/useDialogLifecycle";
 
 const debouncedSearch = createDebouncedSearch(300);
 
 function App() {
   const [results, setResults] = useState<SearchResult[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // 使用输入框聚焦 Hook
+  useInputFocus(inputRef);
+
+  // 使用生命周期 Hook 来处理对话框显示时的额外逻辑
+  useDialogLifecycle({
+    enableLogging: true,
+    onEvent: (event) => {
+      if (event === 'did-show') {
+        // 对话框完全显示后，确保输入框聚焦
+        setTimeout(() => {
+          if (inputRef.current) {
+            inputRef.current.focus();
+          }
+        }, 100);
+      }
+    }
+  });
 
   const performSearch = useCallback(async (searchQuery: string) => {
     if (searchQuery.length < 2) {
@@ -60,7 +79,11 @@ function App() {
         className="rounded-lg border shadow-lg bg-white/95 backdrop-blur-sm w-full"
       >
         <Command className="w-full">
-          <CommandInput onValueChange={performSearch} placeholder="搜索书签和标签页..." />
+          <CommandInput 
+            ref={inputRef}
+            onValueChange={performSearch} 
+            placeholder="搜索书签和标签页..." 
+          />
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>
             

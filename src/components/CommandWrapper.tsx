@@ -200,6 +200,15 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
           setTimeout(() => {
             triggerSizeUpdate('lifecycle:did-show');
           }, 50);
+          
+          // 额外聚焦输入框
+          setTimeout(() => {
+            const input = document.querySelector('[data-slot="command-input"]') as HTMLInputElement;
+            if (input) {
+              input.focus();
+              console.log('[CommandWrapper] Input focused after did-show');
+            }
+          }, 150);
           break;
         case 'will-hide':
           // 即将隐藏时也可以更新一次（可选）

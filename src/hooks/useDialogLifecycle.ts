@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fromEvent, filter, map, takeUntil, Subject } from 'rxjs';
+import { fromEvent, filter, takeUntil, Subject } from 'rxjs';
 
 // 定义生命周期事件类型
 export type DialogLifecycleEvent = 'will-show' | 'did-show' | 'will-hide' | 'did-hide';
@@ -32,6 +32,8 @@ export interface UseDialogLifecycleOptions {
   enableLogging?: boolean;
   // 自定义事件处理器
   onEvent?: (event: DialogLifecycleEvent, timestamp: number) => void;
+  // 聚焦输入框处理器
+  onFocusInput?: () => void;
 }
 
 /**
@@ -43,7 +45,8 @@ export function useDialogLifecycle(options: UseDialogLifecycleOptions = {}) {
     keepHistory = true,
     maxHistoryLength = 50,
     enableLogging = false,
-    onEvent
+    onEvent,
+    onFocusInput
   } = options;
 
   // Hook 状态
@@ -60,43 +63,48 @@ export function useDialogLifecycle(options: UseDialogLifecycleOptions = {}) {
   useEffect(() => {
     // 创建消息事件流
     const message$ = fromEvent<MessageEvent>(window, 'message').pipe(
-      // 过滤出对话框生命周期消息
-      filter((event): event is MessageEvent<DialogLifecycleMessage> => {
-        return event.data?.type === 'DIALOG_LIFECYCLE';
+      // 过滤出对话框相关消息
+      filter((event): event is MessageEvent<DialogLifecycleMessage | { type: 'FOCUS_INPUT' }> => {
+        return event.data?.type === 'DIALOG_LIFECYCLE' || event.data?.type === 'FOCUS_INPUT';
       }),
-      // 提取事件数据
-      map(event => ({
-        event: event.data.event,
-        timestamp: event.data.timestamp
-      })),
       // 组件卸载时停止监听
       takeUntil(destroy$)
     );
 
     // 订阅消息流
     const subscription = message$.subscribe({
-      next: ({ event, timestamp }) => {
-        if (enableLogging) {
-          console.log(`[useDialogLifecycle] Received event: ${event} at ${new Date(timestamp).toISOString()}`);
-        }
+      next: (event) => {
+        if (event.data.type === 'FOCUS_INPUT') {
+          // 处理聚焦输入框请求
+          if (onFocusInput) {
+            onFocusInput();
+          }
+        } else if (event.data.type === 'DIALOG_LIFECYCLE') {
+          // 处理生命周期事件
+          const { event: lifecycleEvent, timestamp } = event.data;
+          
+          if (enableLogging) {
+            console.log(`[useDialogLifecycle] Received event: ${lifecycleEvent} at ${new Date(timestamp).toISOString()}`);
+          }
 
-        // 更新状态
-        setState(prevState => {
-          const newEventHistory = keepHistory 
-            ? [...prevState.eventHistory, { event, timestamp }].slice(-maxHistoryLength)
-            : [];
+          // 更新状态
+          setState(prevState => {
+            const newEventHistory = keepHistory 
+              ? [...prevState.eventHistory, { event: lifecycleEvent, timestamp }].slice(-maxHistoryLength)
+              : [];
 
-          return {
-            currentEvent: event,
-            isVisible: event === 'did-show' || (event === 'will-show' && prevState.isVisible),
-            lastEventTime: timestamp,
-            eventHistory: newEventHistory
-          };
-        });
+            return {
+              currentEvent: lifecycleEvent,
+              isVisible: lifecycleEvent === 'did-show' || (lifecycleEvent === 'will-show' && prevState.isVisible),
+              lastEventTime: timestamp,
+              eventHistory: newEventHistory
+            };
+          });
 
-        // 调用自定义事件处理器
-        if (onEvent) {
-          onEvent(event, timestamp);
+          // 调用自定义事件处理器
+          if (onEvent) {
+            onEvent(lifecycleEvent, timestamp);
+          }
         }
       },
       error: (error) => {
@@ -108,7 +116,7 @@ export function useDialogLifecycle(options: UseDialogLifecycleOptions = {}) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [keepHistory, maxHistoryLength, enableLogging, onEvent, destroy$]);
+  }, [keepHistory, maxHistoryLength, enableLogging, onEvent, onFocusInput, destroy$]);
 
   // 组件卸载时清理
   useEffect(() => {
@@ -175,5 +183,35 @@ export function useDialogLifecycleCallback(
     keepHistory: false,
     enableLogging: false,
     onEvent: callback
+  });
+}
+
+// 创建一个专门处理输入框聚焦的 Hook
+export function useInputFocus(inputRef?: React.RefObject<HTMLInputElement | null>) {
+  useDialogLifecycle({
+    keepHistory: false,
+    enableLogging: false,
+    onFocusInput: () => {
+      // 聚焦指定的输入框
+      if (inputRef?.current) {
+        inputRef.current.focus();
+        console.log('[useInputFocus] Input focused via ref');
+      } else {
+        // 如果没有指定 ref，尝试聚焦页面中的第一个输入框
+        const inputs = document.querySelectorAll('input[type="text"], input[type="search"], input:not([type])');
+        const firstInput = inputs[0] as HTMLInputElement;
+        if (firstInput) {
+          firstInput.focus();
+          console.log('[useInputFocus] First input focused');
+        } else {
+          // 尝试聚焦 cmdk 输入框
+          const cmdkInput = document.querySelector('[data-slot="command-input"]') as HTMLInputElement;
+          if (cmdkInput) {
+            cmdkInput.focus();
+            console.log('[useInputFocus] CMDK input focused');
+          }
+        }
+      }
+    }
   });
 }

@@ -51,6 +51,12 @@ class CtrlKDialog extends HTMLElement {
         position: relative;
         resize: vertical;
         overflow: hidden;
+        outline: none; /* 移除默认聚焦轮廓 */
+      }
+
+      dialog:focus {
+        outline: 2px solid rgba(59, 130, 246, 0.5); /* 自定义聚焦样式 */
+        outline-offset: 2px;
       }
 
       dialog::backdrop {
@@ -108,6 +114,13 @@ class CtrlKDialog extends HTMLElement {
 			}
 		});
 
+		// 对话框聚焦时，尝试聚焦 iframe 中的输入框
+		this.dialog.addEventListener('focus', () => {
+			setTimeout(() => {
+				this.focusInputInIframe();
+			}, 50);
+		});
+
 		// iframe 加载完成
 		this.iframe.addEventListener('load', () => {
 			const loadingElement = loading as HTMLElement;
@@ -121,6 +134,13 @@ class CtrlKDialog extends HTMLElement {
 
 			// 开始监听来自子页面的高度变化通知
 			this.startMessageListening();
+			
+			// iframe 加载完成后，如果对话框是打开状态，聚焦输入框
+			if (this.dialog.open) {
+				setTimeout(() => {
+					this.focusInputInIframe();
+				}, 100);
+			}
 		});
 
 		// iframe 加载错误
@@ -174,20 +194,42 @@ class CtrlKDialog extends HTMLElement {
 		}
 	}
 
+	// 聚焦 iframe 中的输入框
+	private focusInputInIframe() {
+		if (this.iframe.contentWindow) {
+			try {
+				// 发送聚焦请求到子页面
+				const message = {
+					type: 'FOCUS_INPUT',
+					timestamp: Date.now()
+				};
+				this.iframe.contentWindow.postMessage(message, '*');
+				console.log('Sent focus input request to iframe');
+			} catch (error) {
+				console.warn('Failed to request input focus in iframe:', error);
+			}
+		}
+	}
+
 	// 公共方法
 	open() {
 		// 通知子页面即将被展示
 		this.notifyChildPageLifecycle('will-show');
 		
 		this.dialog.showModal();
+		
+		// 立即聚焦到 dialog 本身
+		this.dialog.focus();
+		
 		this.dispatchEvent(new CustomEvent('dialog-open'));
 
 		// 监听窗口大小变化
 		this.setupWindowResizeListener();
 		
-		// 延迟通知子页面已经展示（确保 dialog 完全打开）
+		// 延迟通知子页面已经展示并聚焦输入框（确保 dialog 和 iframe 完全打开）
 		setTimeout(() => {
 			this.notifyChildPageLifecycle('did-show');
+			this.focusInputInIframe();
 		}, 100);
 	}
 
@@ -340,6 +382,16 @@ class CtrlKDialog extends HTMLElement {
 	// 公共方法：触发高度重新计算
 	refreshHeight() {
 		this.adjustHeight();
+	}
+
+	// 公共方法：聚焦输入框
+	focusInput() {
+		// 首先聚焦 dialog
+		this.dialog.focus();
+		// 然后尝试聚焦 iframe 中的输入框
+		setTimeout(() => {
+			this.focusInputInIframe();
+		}, 50);
 	}
 }
 
