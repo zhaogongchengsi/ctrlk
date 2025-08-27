@@ -25,11 +25,20 @@
   "action": {
     "default_popup": "dist/index.html",
     "default_icon": {
-      "16": "dist/vite.svg"
+      "16": "./dist/icon_16.png",
+      "32": "./dist/icon_32.png",
+      "64": "./dist/icon_64.png",
+      "128": "./dist/icon_128.png"
     }
   },
   "icons": {
-    "16": "dist/vite.svg"
+    "16": "./dist/icon_16.png",
+    "32": "./dist/icon_32.png",
+    "64": "./dist/icon_64.png",
+    "128": "./dist/icon_128.png",
+    "256": "./dist/icon_256.png",
+    "512": "./dist/icon_512.png",
+    "1024": "./dist/icon_1024.png"
   },
   "content_scripts": [
     {
