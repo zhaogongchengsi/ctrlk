@@ -182,18 +182,18 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
     setTimeout(() => {
       const rect = element.getBoundingClientRect();
       const contentHeight = calculateContentHeight();
-      
+
       lastSizeRef.current = { width: rect.width, height: rect.height };
       lastContentHeightRef.current = contentHeight;
-      
+
       // 初始化时也通知一次
       if (onContentHeightChange) {
         onContentHeightChange(contentHeight);
       }
-      
-      console.log('CommandWrapper initialized:', {
+
+      console.log("CommandWrapper initialized:", {
         containerSize: { width: rect.width, height: rect.height },
-        contentHeight: contentHeight
+        contentHeight: contentHeight,
       });
     }, 50); // 小延迟确保渲染完成
 
@@ -204,7 +204,7 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
       }
       resizeObserver.disconnect();
     };
-  }, [debouncedHandleSizeChange, calculateContentHeight, onContentHeightChange]);
+  }, [wrapperRef, debouncedHandleSizeChange, calculateContentHeight, onContentHeightChange]);
 
   // 监听内容变化（作为 ResizeObserver 的补充）
   useEffect(() => {

@@ -217,7 +217,7 @@ export class SearchEngine {
           for (const node of nodes) {
             if (node.url) {
               bookmarks.push({
-                id: `bookmark:${node.id}`,
+				id: node.id,
                 title: node.title || 'Untitled',
                 url: node.url
               });
@@ -240,7 +240,7 @@ export class SearchEngine {
         const tabData: TabData[] = tabs
           .filter(tab => tab.id !== undefined && tab.url)
           .map(tab => ({
-			id: `tab:${tab.id!}`,
+			id: `${tab.id!}`,
             title: tab.title || 'Untitled',
             url: tab.url!,
             favIconUrl: tab.favIconUrl
