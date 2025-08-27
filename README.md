@@ -1,7 +1,7 @@
 # CtrlK - 快速搜索浏览器扩展
 
 <div align="center">
-  <img src="public/logo.png" alt="CtrlK Logo" width="128" height="128">
+  <img src="public/icon.png" alt="CtrlK Logo" width="128" height="128">
   
   <p><strong>一个优雅的 Chrome 浏览器扩展，让您通过 Ctrl+K 快捷键快速搜索和访问书签与标签页</strong></p>
 
