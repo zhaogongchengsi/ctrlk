@@ -332,6 +332,9 @@ class CtrlKDialog extends HTMLElement {
 	}
 
 	close() {
+		// 立即触发关闭事件，不等待动画完成
+		this.dispatchEvent(new CustomEvent('dialog-close'));
+		
 		// 通知子页面即将失焦/隐藏
 		this.notifyChildPageLifecycle('will-hide');
 		
@@ -352,8 +355,6 @@ class CtrlKDialog extends HTMLElement {
 				
 				// 恢复页面滚动
 				document.body.style.overflow = '';
-				
-				this.dispatchEvent(new CustomEvent('dialog-close'));
 				
 				// 延迟通知子页面已经隐藏
 				setTimeout(() => {
