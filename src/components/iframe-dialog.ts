@@ -97,9 +97,9 @@ class CtrlKDialog extends HTMLElement {
 
       /* 自适应主题的蒙板背景 */
       dialog::backdrop {
-        background: rgba(0, 0, 0, 0.4);
-        backdrop-filter: blur(12px) saturate(1.8);
-        -webkit-backdrop-filter: blur(12px) saturate(1.8);
+        background: rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(4px) saturate(1.2);
+        -webkit-backdrop-filter: blur(4px) saturate(1.2);
         opacity: 0;
         transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       }
@@ -107,18 +107,18 @@ class CtrlKDialog extends HTMLElement {
       /* 深色主题蒙板 */
       @media (prefers-color-scheme: dark) {
         dialog::backdrop {
-          background: rgba(0, 0, 0, 0.7);
-          backdrop-filter: blur(16px) saturate(1.5);
-          -webkit-backdrop-filter: blur(16px) saturate(1.5);
+          background: rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(6px) saturate(1.1);
+          -webkit-backdrop-filter: blur(6px) saturate(1.1);
         }
       }
 
       /* 浅色主题蒙板 */
       @media (prefers-color-scheme: light) {
         dialog::backdrop {
-          background: rgba(0, 0, 0, 0.3);
-          backdrop-filter: blur(12px) saturate(2);
-          -webkit-backdrop-filter: blur(12px) saturate(2);
+          background: rgba(0, 0, 0, 0.15);
+          backdrop-filter: blur(3px) saturate(1.3);
+          -webkit-backdrop-filter: blur(3px) saturate(1.3);
         }
       }
 
@@ -247,14 +247,14 @@ class CtrlKDialog extends HTMLElement {
       /* 动态主题蒙板 */
       dialog::backdrop {
         background: ${isDark 
-          ? 'rgba(0, 0, 0, 0.75)' 
-          : 'rgba(0, 0, 0, 0.35)'} !important;
+          ? 'rgba(0, 0, 0, 0.25)' 
+          : 'rgba(0, 0, 0, 0.12)'} !important;
         backdrop-filter: ${isDark 
-          ? 'blur(20px) saturate(1.4)' 
-          : 'blur(16px) saturate(2.2)'} !important;
+          ? 'blur(5px) saturate(1.1)' 
+          : 'blur(3px) saturate(1.2)'} !important;
         -webkit-backdrop-filter: ${isDark 
-          ? 'blur(20px) saturate(1.4)' 
-          : 'blur(16px) saturate(2.2)'} !important;
+          ? 'blur(5px) saturate(1.1)' 
+          : 'blur(3px) saturate(1.2)'} !important;
       }
       /* 动态主题蒙板结束 */`;
 			

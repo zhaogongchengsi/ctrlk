@@ -61,7 +61,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
       key={result.id}
       value={`${result.title} ${result.url}`}
       onSelect={() => onSelect(result)}
-      className={`flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-gray-50/80 transition-all duration-150 border-b border-gray-50/50 last:border-b-0 group ${className}`}
+      className={`flex items-center gap-4 px-6 py-4 cursor-pointer hover:bg-gray-50/80 dark:hover:bg-gray-800/80 transition-all duration-150 border-b border-gray-50/50 dark:border-gray-800/50 last:border-b-0 group ${className}`}
     >
       {/* 图标或网站favicon */}
       <div className="flex-shrink-0 w-6 h-6 flex items-center justify-center">
@@ -80,7 +80,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
             }}
           />
         ) : (
-          <span className="text-base opacity-70 transition-all duration-150 group-hover:opacity-90">
+          <span className="text-base opacity-70 transition-all duration-150 group-hover:opacity-90 dark:opacity-60 dark:group-hover:opacity-80">
             {icon}
           </span>
         )}
@@ -89,7 +89,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
       {/* 主要内容 */}
       <div className="flex-1 min-w-0">
         {/* 标题 */}
-        <div className="font-semibold text-base text-gray-900 truncate leading-tight">
+        <div className="font-semibold text-base text-gray-900 dark:text-gray-100 truncate leading-tight">
           <PreciseHighlightText 
             text={result.title || 'Untitled'} 
             highlights={result.highlights?.title}
@@ -98,7 +98,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
         </div>
         
         {/* 副标题/URL */}
-        <div className="text-sm text-gray-500 truncate mt-1">
+        <div className="text-sm text-gray-500 dark:text-gray-400 truncate mt-1">
           <PreciseHighlightText 
             text={domain || result.url} 
             highlights={result.highlights?.url}
@@ -108,7 +108,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
 
         {/* 历史记录特有信息 */}
         {result.type === 'history' && (result.lastVisitTime || result.visitCount) && (
-          <div className="text-sm text-gray-400 truncate mt-1">
+          <div className="text-sm text-gray-400 dark:text-gray-500 truncate mt-1">
             {result.lastVisitTime && (
               <span>{formatLastVisitTime(result.lastVisitTime)}</span>
             )}
@@ -121,7 +121,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
 
       {/* 分数显示（调试时可用） */}
       {result.score && process.env.NODE_ENV === 'development' && (
-        <div className="text-xs text-gray-400 font-mono">
+        <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">
           {result.score.toFixed(0)}
         </div>
       )}

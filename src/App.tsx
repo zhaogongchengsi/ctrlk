@@ -5,12 +5,14 @@ import { useState, useCallback, useRef } from "react";
 import { createDebouncedSearch, openSearchResult, groupSearchResults } from "./search/search-api";
 import type { SearchResult } from "./search/search-api";
 import { useInputFocus, useDialogLifecycle } from "./hooks/useDialogLifecycle";
+import { useTheme } from "./hooks/useTheme";
 
 const debouncedSearch = createDebouncedSearch(300);
 
 function App() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const theme = useTheme();
 
   // 使用输入框聚焦 Hook
   useInputFocus(inputRef);
@@ -26,6 +28,13 @@ function App() {
             inputRef.current.focus();
           }
         }, 100);
+        
+        // 设置主题class到body上，以便Tailwind的dark:类生效
+        if (theme === 'dark') {
+          document.body.classList.add('dark');
+        } else {
+          document.body.classList.remove('dark');
+        }
       }
     }
   });
@@ -58,12 +67,17 @@ function App() {
   // 分组搜索结果
   const groupedResults = groupSearchResults(results);
 
+  // 根据主题选择样式
+  const wrapperClassName = theme === 'dark' 
+    ? "rounded-xl border border-gray-700/60 shadow-2xl bg-gray-900/95 backdrop-blur-md w-full overflow-hidden"
+    : "rounded-xl border border-gray-200/60 shadow-2xl bg-white/98 backdrop-blur-md w-full overflow-hidden";
+
   return (
       <CommandWrapper
         debounceMs={150}
         maxHeight={600} // 设置最大高度为 600px
         enableScrollCheck={true}
-        className="rounded-xl border border-gray-200/60 shadow-2xl bg-white/98 backdrop-blur-md w-full overflow-hidden"
+        className={wrapperClassName}
       >
         <Command className="w-full">
           <CommandInput

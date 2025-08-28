@@ -80,7 +80,7 @@ export const SEARCH_CONFIG = {
   
   // 高亮样式
   HIGHLIGHT: {
-    className: 'bg-blue-100/80 text-blue-900 px-1 py-0.5 rounded font-semibold',
+    className: 'bg-blue-100/80 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 px-1 py-0.5 rounded font-semibold',
     tag: 'mark',
   },
 } as const;

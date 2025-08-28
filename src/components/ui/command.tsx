@@ -64,14 +64,14 @@ const CommandInput = React.forwardRef<
   return (
     <div
       data-slot="command-input-wrapper"
-      className="flex h-16 items-center gap-3 px-6 border-b border-gray-100/50 bg-gradient-to-r from-white/95 to-gray-50/95 backdrop-blur-sm"
+      className="flex h-16 items-center gap-3 px-6 border-b border-gray-100/50 dark:border-gray-700/50 bg-gradient-to-r from-white/95 to-gray-50/95 dark:from-gray-900/95 dark:to-gray-800/95 backdrop-blur-sm"
     >
-      <SearchIcon className="size-5 shrink-0 text-gray-400 transition-colors duration-200" />
+      <SearchIcon className="size-5 shrink-0 text-gray-400 dark:text-gray-500 transition-colors duration-200" />
       <CommandPrimitive.Input
         ref={ref}
         data-slot="command-input"
         className={cn(
-          "placeholder:text-gray-400 flex h-12 w-full bg-transparent text-base font-medium text-gray-900 outline-hidden disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 focus:placeholder:text-gray-300",
+          "placeholder:text-gray-400 dark:placeholder:text-gray-500 flex h-12 w-full bg-transparent text-base font-medium text-gray-900 dark:text-gray-100 outline-hidden disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 focus:placeholder:text-gray-300 dark:focus:placeholder:text-gray-600",
           className
         )}
         {...props}
@@ -103,7 +103,7 @@ function CommandEmpty({
   return (
     <CommandPrimitive.Empty
       data-slot="command-empty"
-      className="py-12 text-center text-base text-gray-500 font-medium"
+      className="py-12 text-center text-base text-gray-500 dark:text-gray-400 font-medium"
       {...props}
     />
   )
@@ -117,7 +117,7 @@ function CommandGroup({
     <CommandPrimitive.Group
       data-slot="command-group"
       className={cn(
-        "text-foreground overflow-hidden [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:text-sm [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-gray-600 [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:uppercase",
+        "text-foreground overflow-hidden [&_[cmdk-group-heading]]:px-6 [&_[cmdk-group-heading]]:py-3 [&_[cmdk-group-heading]]:text-sm [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-gray-600 dark:[&_[cmdk-group-heading]]:text-gray-400 [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:uppercase",
         className
       )}
       {...props}
