@@ -1,8 +1,9 @@
-import { CLOSE_DIALOG, OPEN_DIALOG } from "./constant";
+import { CLOSE_DIALOG, TOGGLE_DIALOG } from "./constant";
 import { searchManager } from "./search/search-manager";
 
-// 存储当前显示弹窗的标签页ID
+// 存储当前显示弹窗的标签页ID和状态
 let currentDialogTabId: number | null = null;
+let isDialogOpen: boolean = false;
 const id = 'ctrl-k-dialog';
 
 // 初始化搜索引擎
@@ -12,7 +13,7 @@ searchManager.initialize().catch(error => {
 // 监听快捷键命令
 chrome.commands.onCommand.addListener(async (command) => {
 	if (command === "open-panel") {
-		console.log('Opening CtrlK panel...');
+		console.log('Toggling CtrlK panel...');
 		try {
 			// 获取当前活动标签页
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -22,19 +23,30 @@ chrome.commands.onCommand.addListener(async (command) => {
 				return;
 			}
 
-			// 如果当前已有弹窗在其他标签页，先关闭
-			if (currentDialogTabId && currentDialogTabId !== tab.id) {
-				await closeDialogInTab(currentDialogTabId);
+			// 如果当前标签页有弹窗且已打开，则关闭
+			if (currentDialogTabId === tab.id && isDialogOpen) {
+				await closeDialogInTab(tab.id);
+				isDialogOpen = false;
+				currentDialogTabId = null;
+				console.log('Panel closed in tab:', tab.id);
+				return;
 			}
 
+			// 如果弹窗在其他标签页，先关闭
+			if (currentDialogTabId && currentDialogTabId !== tab.id) {
+				await closeDialogInTab(currentDialogTabId);
+				isDialogOpen = false;
+			}
+
+			// 在当前标签页打开弹窗
 			const panelUrl = chrome.runtime.getURL('dist/index.html');
-			// 在当前标签页中切换弹窗
-			openDialogInTab(tab.id, panelUrl);
+			toggleDialogInTab(tab.id, panelUrl);
 
 			currentDialogTabId = tab.id;
-			console.log('Panel toggled in tab:', tab.id);
+			isDialogOpen = true;
+			console.log('Panel opened in tab:', tab.id);
 		} catch (error) {
-			console.error('Error opening panel:', error);
+			console.error('Error toggling panel:', error);
 		}
 	}
 });
@@ -49,8 +61,8 @@ function sendMessageToTab(tabId: number, message: unknown) {
 	});
 }
 
-function openDialogInTab(tabId: number, src: string) {
-	sendMessageToTab(tabId, { type: OPEN_DIALOG, src, id });
+function toggleDialogInTab(tabId: number, src: string) {
+	sendMessageToTab(tabId, { type: TOGGLE_DIALOG, src, id });
 }
 
 // 关闭指定标签页中的弹窗
@@ -64,6 +76,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 	if (currentDialogTabId && currentDialogTabId !== activeInfo.tabId) {
 		await closeDialogInTab(currentDialogTabId);
 		currentDialogTabId = null;
+		isDialogOpen = false;
 	}
 });
 
@@ -71,12 +84,29 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
 chrome.tabs.onRemoved.addListener((tabId) => {
 	if (tabId === currentDialogTabId) {
 		currentDialogTabId = null;
+		isDialogOpen = false;
 		console.log('Dialog tab was closed');
 	}
 });
 
 // 监听来自内容脚本的消息
-chrome.runtime.onMessage.addListener((message, _, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
 	console.log("Background received message:", message);
-	sendResponse({ reply: "Hello from background!" });
+	
+	// 处理弹窗状态变化通知
+	if (message.type === 'DIALOG_STATE_CHANGE') {
+		if (message.dialogId === id && sender.tab?.id) {
+			isDialogOpen = message.isOpen;
+			if (!message.isOpen) {
+				// 弹窗已关闭，清除状态
+				if (currentDialogTabId === sender.tab.id) {
+					currentDialogTabId = null;
+				}
+			} else {
+				// 弹窗已打开，更新状态
+				currentDialogTabId = sender.tab.id;
+			}
+			console.log(`Dialog state updated: ${message.isOpen ? 'opened' : 'closed'} in tab ${sender.tab.id}`);
+		}
+	}
 });

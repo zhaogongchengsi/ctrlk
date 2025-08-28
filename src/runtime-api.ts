@@ -4,7 +4,7 @@
  */
 
 import { CtrlKDialog, CtrlKDialogName } from './components/iframe-dialog';
-import { CLOSE_DIALOG, OPEN_DIALOG } from './constant';
+import { CLOSE_DIALOG, OPEN_DIALOG, TOGGLE_DIALOG } from './constant';
 
 interface CtrlKConfig {
 	enableAutoClose?: boolean;
@@ -109,6 +109,13 @@ class CtrlKRuntime {
 		dialog.addEventListener('dialog-close', () => {
 			this.dialogs.delete(id);
 			dialog.remove();
+			// 通知 background script 弹窗已关闭
+			this.notifyBackgroundDialogState(id, false);
+		});
+
+		dialog.addEventListener('dialog-open', () => {
+			// 通知 background script 弹窗已打开
+			this.notifyBackgroundDialogState(id, true);
 		});
 
 		// 添加到页面并存储引用
@@ -207,6 +214,21 @@ class CtrlKRuntime {
 		this.closeAllDialogs();
 		this.dialogs.clear();
 	}
+
+	/**
+	 * 通知 background script 弹窗状态变化
+	 */
+	private notifyBackgroundDialogState(id: string, isOpen: boolean): void {
+		try {
+			chrome.runtime.sendMessage({
+				type: 'DIALOG_STATE_CHANGE',
+				dialogId: id,
+				isOpen: isOpen
+			});
+		} catch (error) {
+			console.warn('Failed to notify background script:', error);
+		}
+	}
 }
 
 // 创建全局实例
@@ -246,6 +268,18 @@ window.addEventListener("message", (event) => {
 
 		if (data.type === CLOSE_DIALOG) {
 			runtime.closeDialog(data.id);
+			return;
+		}
+
+		if (data.type === TOGGLE_DIALOG) {
+			// 检查弹窗是否存在并且打开
+			const dialog = runtime.getDialog(data.id);
+			if (dialog && dialog.isOpen()) {
+				runtime.closeDialog(data.id);
+			} else {
+				runtime.openDialog(data.id, data.src);
+			}
+			return;
 		}
 	}
 });
