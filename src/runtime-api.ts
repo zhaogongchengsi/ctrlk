@@ -123,7 +123,8 @@ class CtrlKRuntime {
 		document.body.appendChild(dialog);
 		this.dialogs.set(id, dialog);
 
-		// 打开 dialog
+		// 设置src并打开弹窗
+		dialog.setAttribute('src', src);
 		dialog.open();
 
 		return dialog;

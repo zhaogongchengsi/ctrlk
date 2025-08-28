@@ -9,6 +9,9 @@ import { DIALOG_BORDER_RADIUS_SIZE } from '../constant';
 
 export const CtrlKDialogName = 'ctrlk-dialog';
 
+// 固定的初始渲染高度常量
+const INITIAL_DIALOG_HEIGHT = 400;
+
 class CtrlKDialog extends HTMLElement {
 	private shadow: ShadowRoot;
 	private dialog: HTMLDialogElement;
@@ -17,6 +20,8 @@ class CtrlKDialog extends HTMLElement {
 	private messageHandler?: (event: MessageEvent) => void;
 	private animationTimeline?: gsap.core.Timeline;
 	private heightAnimationTween?: gsap.core.Tween;
+	private isLoading: boolean = true;
+	private loadingElement?: HTMLElement;
 
 	constructor() {
 		super();
@@ -37,7 +42,8 @@ class CtrlKDialog extends HTMLElement {
       :host {
         /* 可被子页面覆盖的CSS自定义属性 */
         --dialog-width: 600px;
-        --dialog-min-height: 0;
+        --dialog-height: ${INITIAL_DIALOG_HEIGHT}px;
+        --dialog-min-height: ${INITIAL_DIALOG_HEIGHT}px;
         --dialog-max-height: 66.67vh;
         
         /* 基础定位 */
@@ -51,11 +57,12 @@ class CtrlKDialog extends HTMLElement {
       }
 
       dialog {
-        /* 基础尺寸和定位 - 可被CSS自定义属性覆盖 */
+        /* 基础尺寸和定位 - 使用固定初始高度 */
         border: none;
         padding: 0;
         margin: 0;
         width: var(--dialog-width);
+        height: var(--dialog-height);
         min-height: var(--dialog-min-height);
         max-height: var(--dialog-max-height);
         max-width: 90vw;
@@ -336,46 +343,18 @@ class CtrlKDialog extends HTMLElement {
 
 		// iframe 加载完成
 		this.iframe.addEventListener('load', () => {
-			const loadingElement = loading as HTMLElement;
-			
-			// 设置 iframe 初始透明度
+			// 设置 iframe 初始透明度为0（隐藏状态）
 			gsap.set(this.iframe, { opacity: 0 });
 			this.iframe.style.display = 'block';
 			
-			// 首先立即调整高度（不使用动画）
-			this.adjustHeight(undefined, false);
-			
-			// 等待一个短暂延迟确保高度调整完成后，再开始加载完成动画
-			requestAnimationFrame(() => {
-				const loadCompleteTimeline = gsap.timeline();
-				// 淡出加载指示器
-				if (loadingElement) {
-					loadCompleteTimeline.to(loadingElement, {
-						duration: 0.2,
-						opacity: 0,
-						scale: 0.9,
-						ease: 'power2.in',
-						onComplete: () => {
-							loadingElement.style.display = 'none';
-						}
-					});
-				}
-				
-				// 淡入 iframe 内容
-				loadCompleteTimeline.to(this.iframe, {
-					duration: 0.3,
-					opacity: 1,
-					ease: 'power2.out'
-				}, loadingElement ? 0.1 : 0);
-			});
-
-			// 开始监听来自子页面的高度变化通知
+			// 开始监听来自子页面的消息（包括主题设置完成通知）
 			this.startMessageListening();
 			
-			// iframe 加载完成后，如果对话框是打开状态，聚焦输入框
-			if (this.dialog.open) {
+			// 发送主题信息到子页面（如果还在loading状态）
+			if (this.isLoading) {
+				// 延迟发送，确保子页面已经准备好接收消息
 				setTimeout(() => {
-					this.focusInputInIframe();
+					this.sendThemeToChild();
 				}, 100);
 			}
 		});
@@ -448,15 +427,79 @@ class CtrlKDialog extends HTMLElement {
 		}
 	}
 
+	// 显示加载状态
+	private showLoading() {
+		this.loadingElement = this.shadow.querySelector('.loading') as HTMLElement;
+		if (this.loadingElement) {
+			this.loadingElement.style.display = 'flex';
+			this.loadingElement.style.opacity = '1';
+		}
+		this.iframe.style.display = 'none';
+	}
+
+	// 隐藏加载状态并显示内容
+	private hideLoading() {
+		if (this.loadingElement) {
+			gsap.to(this.loadingElement, {
+				duration: 0.2,
+				opacity: 0,
+				scale: 0.9,
+				ease: 'power2.in',
+				onComplete: () => {
+					if (this.loadingElement) {
+						this.loadingElement.style.display = 'none';
+					}
+				}
+			});
+		}
+		
+		// 显示iframe内容
+		this.iframe.style.display = 'block';
+		gsap.fromTo(this.iframe, 
+			{ opacity: 0 },
+			{ 
+				duration: 0.3,
+				opacity: 1,
+				ease: 'power2.out',
+				onComplete: () => {
+					// 内容显示完成，通知子页面并聚焦
+					this.isLoading = false;
+					this.notifyChildPageLifecycle('did-show');
+					this.focusInputInIframe();
+				}
+			}
+		);
+	}
+
+	// 发送主题信息到子页面
+	private sendThemeToChild() {
+		if (this.iframe.contentWindow) {
+			const isDark = this.detectDarkTheme();
+			const message = {
+				type: 'SET_THEME',
+				theme: isDark ? 'dark' : 'light',
+				timestamp: Date.now()
+			};
+			
+			try {
+				this.iframe.contentWindow.postMessage(message, '*');
+				console.log(`Sent theme to child: ${message.theme}`);
+			} catch (error) {
+				console.warn('Failed to send theme to child:', error);
+			}
+		}
+	}
+
 	// 公共方法
 	open() {
-		// 通知子页面即将被展示
-		this.notifyChildPageLifecycle('will-show');
+		// 设置初始加载状态
+		this.isLoading = true;
+		this.showLoading();
 		
 		// 更新蒙板主题
 		this.updateBackdropTheme();
 		
-		// 设置初始状态 - 保持居中定位
+		// 设置初始状态 - 保持居中定位，使用固定高度
 		gsap.set(this.dialog, {
 			opacity: 0,
 			scale: 0.9,
@@ -467,19 +510,12 @@ class CtrlKDialog extends HTMLElement {
 		
 		this.dialog.showModal();
 		
-		// 创建入场动画时间线
-		this.animationTimeline = gsap.timeline({
-			onComplete: () => {
-				// 动画完成后聚焦并通知子页面
-				this.dialog.focus();
-				this.notifyChildPageLifecycle('did-show');
-				this.focusInputInIframe();
-			}
-		});
+		// 创建入场动画时间线 - 弹窗和蒙板一起出现
+		this.animationTimeline = gsap.timeline();
 
-		// 背景渐入
+		// 背景和弹窗同时渐入
 		this.animationTimeline.to(this.dialog, {
-			duration: 0.2,
+			duration: 0.3,
 			opacity: 1,
 			ease: 'power2.out'
 		}, 0);
@@ -645,10 +681,22 @@ class CtrlKDialog extends HTMLElement {
 			if (event.source !== this.iframe.contentWindow) {
 				return;
 			}
+			
 			// 处理高度变化通知
 			if (event.data && event.data.type === 'HEIGHT_CHANGE_NOTIFICATION') {
 				// 重新获取高度并更新
 				this.adjustHeight(event.data?.height, true);
+				return;
+			}
+			
+			// 处理主题设置完成通知
+			if (event.data && event.data.type === 'THEME_READY') {
+				console.log('Child page theme is ready');
+				// 子页面主题设置完成，结束loading状态
+				if (this.isLoading) {
+					this.hideLoading();
+				}
+				return;
 			}
 		};
 
