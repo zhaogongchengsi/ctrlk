@@ -119,9 +119,9 @@ function App() {
       debounceMs={150}
       maxHeight={600} // 设置最大高度为 600px
       enableScrollCheck={true}
-      className={cn(wrapperClassName)}
+      className={cn(wrapperClassName, "min-h-[400px]")}
     >
-      <Command className="w-full">
+      <Command className="w-full h-full">
         <CommandInput ref={inputRef} onValueChange={performSearch} placeholder="搜索书签、标签页和历史记录..." />
         <SearchResultsList
           results={groupedResults}

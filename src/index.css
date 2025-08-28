@@ -212,7 +212,7 @@
   }
   html, body, #root {
     @apply bg-transparent text-foreground;
-    min-height: fit-content;
+    min-height: 400px;
     margin: 0;
     padding: 0;
     background-color: var(--app-bg);
