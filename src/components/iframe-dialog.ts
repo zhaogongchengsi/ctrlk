@@ -10,7 +10,7 @@ import { DIALOG_BORDER_RADIUS_SIZE } from '../constant';
 export const CtrlKDialogName = 'ctrlk-dialog';
 
 // 固定的初始渲染高度常量
-const INITIAL_DIALOG_HEIGHT = 400;
+const INITIAL_DIALOG_HEIGHT = 186;
 
 class CtrlKDialog extends HTMLElement {
 	private shadow: ShadowRoot;

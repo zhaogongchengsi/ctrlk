@@ -78,14 +78,6 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
     const hasHorizontalScrollbar = element.scrollWidth > element.clientWidth;
 
     if (hasVerticalScrollbar || hasHorizontalScrollbar) {
-      console.warn('CommandWrapper detected scrollbars:', {
-        vertical: hasVerticalScrollbar,
-        horizontal: hasHorizontalScrollbar,
-        scrollHeight: element.scrollHeight,
-        clientHeight: element.clientHeight,
-        scrollWidth: element.scrollWidth,
-        clientWidth: element.clientWidth
-      });
       return true;
     }
     return false;

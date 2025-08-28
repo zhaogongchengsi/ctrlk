@@ -64,7 +64,7 @@ const CommandInput = React.forwardRef<
   return (
     <div
       data-slot="command-input-wrapper"
-      className="flex h-16 items-center gap-3 px-6 border-b border-gray-100/50 dark:border-gray-700/50 bg-gradient-to-r from-white/95 to-gray-50/95 dark:from-gray-900/95 dark:to-gray-800/95 backdrop-blur-sm"
+      className="flex h-16 items-center gap-3 px-6 border-b border-gray-100/50 dark:border-gray-700/50 bg-gradient-to-r dark:bg-[var(--gray2)] backdrop-blur-sm"
     >
       <SearchIcon className="size-5 shrink-0 text-gray-400 dark:text-gray-500 transition-colors duration-200" />
       <CommandPrimitive.Input
@@ -72,12 +72,12 @@ const CommandInput = React.forwardRef<
         data-slot="command-input"
         className={cn(
           "placeholder:text-gray-400 dark:placeholder:text-gray-500 flex h-12 w-full bg-transparent text-base font-medium text-gray-900 dark:text-gray-100 outline-hidden disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 focus:placeholder:text-gray-300 dark:focus:placeholder:text-gray-600",
-          className
+          className,
         )}
         {...props}
       />
     </div>
-  )
+  );
 })
 CommandInput.displayName = "CommandInput"
 
