@@ -99,7 +99,7 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
         window.parent.postMessage({
           type: 'HEIGHT_CHANGE_NOTIFICATION',
           timestamp: Date.now(),
-		  height,
+		      height,
         }, '*');
       } catch (error) {
         console.warn('Failed to notify parent window:', error);

@@ -179,31 +179,33 @@ class CtrlKDialog extends HTMLElement {
 			gsap.set(this.iframe, { opacity: 0 });
 			this.iframe.style.display = 'block';
 			
-			// 创建加载完成的动画序列
-			const loadCompleteTimeline = gsap.timeline();
+			// 首先立即调整高度（不使用动画）
+			this.adjustHeight(undefined, false);
 			
-			// 淡出加载指示器
-			if (loadingElement) {
-				loadCompleteTimeline.to(loadingElement, {
-					duration: 0.2,
-					opacity: 0,
-					scale: 0.9,
-					ease: 'power2.in',
-					onComplete: () => {
-						loadingElement.style.display = 'none';
-					}
-				});
-			}
-			
-			// 淡入 iframe 内容
-			loadCompleteTimeline.to(this.iframe, {
-				duration: 0.3,
-				opacity: 1,
-				ease: 'power2.out'
-			}, loadingElement ? 0.1 : 0);
-
-			// 自适应内容高度
-			this.adjustHeight();
+			// 等待一个短暂延迟确保高度调整完成后，再开始加载完成动画
+			requestAnimationFrame(() => {
+				const loadCompleteTimeline = gsap.timeline();
+				
+				// 淡出加载指示器
+				if (loadingElement) {
+					loadCompleteTimeline.to(loadingElement, {
+						duration: 0.2,
+						opacity: 0,
+						scale: 0.9,
+						ease: 'power2.in',
+						onComplete: () => {
+							loadingElement.style.display = 'none';
+						}
+					});
+				}
+				
+				// 淡入 iframe 内容
+				loadCompleteTimeline.to(this.iframe, {
+					duration: 0.3,
+					opacity: 1,
+					ease: 'power2.out'
+				}, loadingElement ? 0.1 : 0);
+			});
 
 			// 开始监听来自子页面的高度变化通知
 			this.startMessageListening();
@@ -383,12 +385,12 @@ class CtrlKDialog extends HTMLElement {
 	}
 
 	// 自适应内容高度
-	private adjustHeight(height?: number) {
+	private adjustHeight(height?: number, useAnimation = false) {
 		try {
 			// 尝试获取 iframe 内容的高度
 			const iframeDocument = this.iframe.contentDocument;
 			if (iframeDocument && !height) {
-				const contentHeight = height ?? iframeDocument.documentElement.scrollHeight;
+				const contentHeight = iframeDocument.documentElement.scrollHeight;
 				const viewportHeight = window.innerHeight;
 				const maxHeight = Math.floor(viewportHeight * 0.8); // 最大高度为视口高度的 80%
 				const minHeight = 200;
@@ -396,25 +398,28 @@ class CtrlKDialog extends HTMLElement {
 				// 计算合适的高度，并确保不超过最大高度
 				const targetHeight = Math.min(Math.max(contentHeight + 20, minHeight), maxHeight);
 				
+				console.log('Adjusting height:', { contentHeight, targetHeight, useAnimation });
+				
 				// 调整位置和大小
-				this.adjustPosition(targetHeight);
+				this.adjustPosition(targetHeight, useAnimation);
 			} else if (height) {
 				// 如果提供了具体高度值，直接使用
-				this.adjustPosition(height);
+				console.log('Adjusting to specific height:', { height, useAnimation });
+				this.adjustPosition(height, useAnimation);
 			}
-		} catch {
+		} catch (error) {
 			// 跨域情况下无法获取内容高度，使用默认高度
-			console.log('Cannot access iframe content height due to CORS policy');
+			console.log('Cannot access iframe content height due to CORS policy:', error);
 			const defaultHeight = 400;
 			const maxHeight = Math.floor(window.innerHeight * 0.8);
 			const finalHeight = Math.min(defaultHeight, maxHeight);
 
-			this.adjustPosition(finalHeight);
+			this.adjustPosition(finalHeight, useAnimation);
 		}
 	}
 
 	// 调整 dialog 位置，确保在视口内
-	private adjustPosition(dialogHeight: number) {
+	private adjustPosition(dialogHeight: number, useAnimation = false) {
 		const viewportHeight = window.innerHeight;
 		const viewportWidth = window.innerWidth;
 		
@@ -434,6 +439,14 @@ class CtrlKDialog extends HTMLElement {
 		// 停止之前的高度动画
 		if (this.heightAnimationTween) {
 			this.heightAnimationTween.kill();
+		}
+
+		if (!useAnimation) {
+			// 直接设置高度和宽度
+			this.dialog.style.height = `${finalHeight}px`;
+			this.dialog.style.width = `${finalWidth}px`;
+			this.dialog.style.overflowY = overflowY;
+			return;
 		}
 		
 		// 使用 GSAP 进行平滑的高度和宽度过渡
@@ -461,12 +474,10 @@ class CtrlKDialog extends HTMLElement {
 			if (event.source !== this.iframe.contentWindow) {
 				return;
 			}
-
-			console.log('Received message from iframe:', event.data);
 			// 处理高度变化通知
 			if (event.data && event.data.type === 'HEIGHT_CHANGE_NOTIFICATION') {
 				// 重新获取高度并更新
-				this.adjustHeight(event.data?.height);
+				this.adjustHeight(event.data?.height, true);
 			}
 		};
 
@@ -496,9 +507,9 @@ class CtrlKDialog extends HTMLElement {
 				// 获取当前高度
 				const currentHeight = this.dialog.offsetHeight;
 				// 重新调整位置，确保在视口内
-				this.adjustPosition(currentHeight);
+				this.adjustPosition(currentHeight, false);
 				// 重新计算内容高度
-				this.adjustHeight();
+				this.adjustHeight(currentHeight, false);
 			}, 100);
 		};
 
@@ -530,9 +541,9 @@ class CtrlKDialog extends HTMLElement {
 		}
 	}
 
-	// 公共方法：触发高度重新计算
+	// 公共方法：触发高度重新计算（不使用动画）
 	refreshHeight() {
-		this.adjustHeight();
+		this.adjustHeight(undefined, false);
 	}
 
 	// 公共方法：聚焦输入框
