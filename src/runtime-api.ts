@@ -5,6 +5,7 @@
 
 import { CtrlKDialog, CtrlKDialogName } from './components/iframe-dialog';
 import { CLOSE_DIALOG, OPEN_DIALOG, TOGGLE_DIALOG } from './constant';
+import ExtensionDialogStateManager from './state/extension-dialog-state-manager';
 
 interface CtrlKConfig {
 	enableAutoClose?: boolean;
@@ -35,9 +36,11 @@ class CtrlKRuntime {
 		defaultHeight: '400px',
 		theme: 'auto'
 	};
+	private stateManager: ExtensionDialogStateManager;
 
 	constructor(config: Partial<CtrlKConfig> = {}) {
 		this.config = { ...this.config, ...config };
+		this.stateManager = new ExtensionDialogStateManager();
 		this.init();
 	}
 
@@ -61,6 +64,11 @@ class CtrlKRuntime {
 					this.notifyHeightChange(event.data.dialogId);
 				}
 			}
+		});
+
+		// 订阅状态变化
+		this.stateManager.events$.subscribe(event => {
+			console.log('Dialog state event:', event);
 		});
 	}
 
@@ -109,13 +117,13 @@ class CtrlKRuntime {
 		dialog.addEventListener('dialog-close', () => {
 			this.dialogs.delete(id);
 			dialog.remove();
-			// 通知 background script 弹窗已关闭
-			this.notifyBackgroundDialogState(id, false);
+			// 使用状态管理器报告实际状态
+			this.stateManager.reportActualDialogState(id, false);
 		});
 
 		dialog.addEventListener('dialog-open', () => {
-			// 通知 background script 弹窗已打开
-			this.notifyBackgroundDialogState(id, true);
+			// 使用状态管理器报告实际状态
+			this.stateManager.reportActualDialogState(id, true);
 		});
 
 		// 添加到页面并存储引用
@@ -213,21 +221,7 @@ class CtrlKRuntime {
 	destroy(): void {
 		this.closeAllDialogs();
 		this.dialogs.clear();
-	}
-
-	/**
-	 * 通知 background script 弹窗状态变化
-	 */
-	private notifyBackgroundDialogState(id: string, isOpen: boolean): void {
-		try {
-			chrome.runtime.sendMessage({
-				type: 'DIALOG_STATE_CHANGE',
-				dialogId: id,
-				isOpen: isOpen
-			});
-		} catch (error) {
-			console.warn('Failed to notify background script:', error);
-		}
+		this.stateManager.destroy();
 	}
 }
 

@@ -8,7 +8,7 @@ export default ['./src/content-script.ts', './src/runtime-api.ts', './src/backgr
 		outputOptions: {
 			entryFileNames: '[name].js',
 		},
-		noExternal: ["fuse.js", "gsap"],
+		noExternal: ["fuse.js", "gsap", "rxjs", "rxjs/operators"],
 		outDir: 'extension/dist',
 	})
 })
