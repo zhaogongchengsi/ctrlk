@@ -1,7 +1,10 @@
 /**
  * IframeDialog Web Component
  * 独立封装的 dialog 组件，使用 iframe 承载子页面
+ * 使用 GSAP 提供流畅的动画效果
  */
+
+import { gsap } from 'gsap';
 
 export const CtrlKDialogName = 'ctrlk-dialog';
 
@@ -11,6 +14,8 @@ class CtrlKDialog extends HTMLElement {
 	private iframe: HTMLIFrameElement;
 	private windowResizeHandler?: () => void;
 	private messageHandler?: (event: MessageEvent) => void;
+	private animationTimeline?: gsap.core.Timeline;
+	private heightAnimationTween?: gsap.core.Tween;
 
 	constructor() {
 		super();
@@ -58,13 +63,20 @@ class CtrlKDialog extends HTMLElement {
         position: fixed;
         top: 50%;
         left: 50%;
-        transform: translate(-50%, -50%);
+        transform: translate(-50%, -50%) scale(0.9);
         resize: vertical;
         overflow: hidden;
         outline: none; /* 移除默认聚焦轮廓 */
         z-index: 9999; /* 确保在最顶层 */
         pointer-events: auto; /* 恢复dialog的点击事件 */
         margin: 0; /* 移除默认margin */
+        opacity: 0;
+        transition: none; /* 禁用CSS过渡，使用GSAP控制 */
+      }
+
+      dialog[open] {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
       }
 
       dialog:focus {
@@ -75,6 +87,12 @@ class CtrlKDialog extends HTMLElement {
       dialog::backdrop {
         background: var(--dialog-bg);
         backdrop-filter: blur(4px);
+        opacity: 0;
+        transition: none; /* 禁用CSS过渡，使用GSAP控制 */
+      }
+
+      dialog[open]::backdrop {
+        opacity: 1;
       }
 
       iframe {
@@ -89,14 +107,33 @@ class CtrlKDialog extends HTMLElement {
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-direction: column;
         height: 200px;
         color: #6b7280;
+        gap: 12px;
+      }
+
+      .loading-spinner {
+        width: 24px;
+        height: 24px;
+        border: 2px solid #e5e7eb;
+        border-top: 2px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
     `;
 
 		// 创建 dialog 结构 - 移除头部，只保留 iframe
 		this.dialog.innerHTML = `
-      <div class="loading">Loading...</div>
+      <div class="loading">
+        <div class="loading-spinner"></div>
+        <div>Loading...</div>
+      </div>
     `;
 
 		// 配置 iframe
@@ -137,10 +174,33 @@ class CtrlKDialog extends HTMLElement {
 		// iframe 加载完成
 		this.iframe.addEventListener('load', () => {
 			const loadingElement = loading as HTMLElement;
-			if (loadingElement) {
-				loadingElement.style.display = 'none';
-			}
+			
+			// 设置 iframe 初始透明度
+			gsap.set(this.iframe, { opacity: 0 });
 			this.iframe.style.display = 'block';
+			
+			// 创建加载完成的动画序列
+			const loadCompleteTimeline = gsap.timeline();
+			
+			// 淡出加载指示器
+			if (loadingElement) {
+				loadCompleteTimeline.to(loadingElement, {
+					duration: 0.2,
+					opacity: 0,
+					scale: 0.9,
+					ease: 'power2.in',
+					onComplete: () => {
+						loadingElement.style.display = 'none';
+					}
+				});
+			}
+			
+			// 淡入 iframe 内容
+			loadCompleteTimeline.to(this.iframe, {
+				duration: 0.3,
+				opacity: 1,
+				ease: 'power2.out'
+			}, loadingElement ? 0.1 : 0);
 
 			// 自适应内容高度
 			this.adjustHeight();
@@ -232,38 +292,83 @@ class CtrlKDialog extends HTMLElement {
 		// 通知子页面即将被展示
 		this.notifyChildPageLifecycle('will-show');
 		
+		// 设置初始状态
+		gsap.set(this.dialog, {
+			opacity: 0,
+			scale: 0.9,
+			transformOrigin: 'center center'
+		});
+		
 		this.dialog.showModal();
 		
-		// 立即聚焦到 dialog 本身
-		this.dialog.focus();
+		// 创建入场动画时间线
+		this.animationTimeline = gsap.timeline({
+			onComplete: () => {
+				// 动画完成后聚焦并通知子页面
+				this.dialog.focus();
+				this.notifyChildPageLifecycle('did-show');
+				this.focusInputInIframe();
+			}
+		});
+
+		// 背景渐入
+		this.animationTimeline.to(this.dialog, {
+			duration: 0.2,
+			opacity: 1,
+			ease: 'power2.out'
+		}, 0);
+
+		// 弹窗缩放和弹性进入
+		this.animationTimeline.to(this.dialog, {
+			duration: 0.4,
+			scale: 1,
+			ease: 'back.out(1.7)'
+		}, 0.1);
 		
 		this.dispatchEvent(new CustomEvent('dialog-open'));
 
 		// 监听窗口大小变化
 		this.setupWindowResizeListener();
-		
-		// 延迟通知子页面已经展示并聚焦输入框（确保 dialog 和 iframe 完全打开）
-		setTimeout(() => {
-			this.notifyChildPageLifecycle('did-show');
-			this.focusInputInIframe();
-		}, 100);
 	}
 
 	close() {
-		// 恢复页面滚动
-		document.body.style.overflow = '';
-		
 		// 通知子页面即将失焦/隐藏
 		this.notifyChildPageLifecycle('will-hide');
 		
-		this.stopHeightWatching();
-		this.dialog.close();
-		this.dispatchEvent(new CustomEvent('dialog-close'));
+		// 停止任何正在进行的动画
+		if (this.animationTimeline) {
+			this.animationTimeline.kill();
+		}
+		if (this.heightAnimationTween) {
+			this.heightAnimationTween.kill();
+		}
 		
-		// 延迟通知子页面已经隐藏（确保 dialog 完全关闭）
-		setTimeout(() => {
-			this.notifyChildPageLifecycle('did-hide');
-		}, 100);
+		// 创建退出动画
+		const closeTimeline = gsap.timeline({
+			onComplete: () => {
+				// 动画完成后关闭对话框
+				this.dialog.close();
+				this.stopHeightWatching();
+				
+				// 恢复页面滚动
+				document.body.style.overflow = '';
+				
+				this.dispatchEvent(new CustomEvent('dialog-close'));
+				
+				// 延迟通知子页面已经隐藏
+				setTimeout(() => {
+					this.notifyChildPageLifecycle('did-hide');
+				}, 50);
+			}
+		});
+
+		// 弹窗缩小和淡出
+		closeTimeline.to(this.dialog, {
+			duration: 0.25,
+			scale: 0.95,
+			opacity: 0,
+			ease: 'power2.in'
+		});
 	}
 
 	toggle() {
@@ -322,21 +427,33 @@ class CtrlKDialog extends HTMLElement {
 		const maxAvailableHeight = viewportHeight - 40; // 上下各留 20px 边距
 		
 		// 如果内容高度超过可用高度，限制高度并启用滚动
-		if (dialogHeight > maxAvailableHeight) {
-			this.dialog.style.height = `${maxAvailableHeight}px`;
-			this.dialog.style.overflowY = 'auto';
-		} else {
-			this.dialog.style.height = `${dialogHeight}px`;
-			this.dialog.style.overflowY = 'hidden';
-		}
+		const finalHeight = Math.min(dialogHeight, maxAvailableHeight);
+		const overflowY = dialogHeight > maxAvailableHeight ? 'auto' : 'hidden';
 		
 		// 确保水平居中，如果宽度超过视口宽度则调整
-		if (dialogWidth > viewportWidth - 40) {
-			this.dialog.style.width = `${viewportWidth - 40}px`;
+		const finalWidth = Math.min(dialogWidth, viewportWidth - 40);
+		
+		// 停止之前的高度动画
+		if (this.heightAnimationTween) {
+			this.heightAnimationTween.kill();
 		}
 		
-		// 保持固定在视口中央的位置
-		// transform: translate(-50%, -50%) 已在 CSS 中设置，无需额外调整
+		// 使用 GSAP 进行平滑的高度和宽度过渡
+		this.heightAnimationTween = gsap.to(this.dialog, {
+			duration: 0.3,
+			height: finalHeight,
+			width: finalWidth,
+			ease: 'power2.out',
+			onUpdate: () => {
+				// 在动画过程中更新溢出样式
+				this.dialog.style.overflowY = overflowY;
+			},
+			onComplete: () => {
+				// 动画完成后确保样式正确
+				this.dialog.style.overflowY = overflowY;
+				this.heightAnimationTween = undefined;
+			}
+		});
 	}
 
 	// 开始监听来自子页面的消息

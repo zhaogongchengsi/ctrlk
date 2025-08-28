@@ -15,6 +15,34 @@ export const SEARCH_CONFIG = {
     MAX_DAYS: 30,
   },
   
+  // Fuse.js 搜索配置
+  FUSE_OPTIONS: {
+    threshold: 0.4, // 模糊匹配阈值 (0-1，越小越严格)
+    distance: 100, // 搜索距离
+    minMatchCharLength: 2, // 最小匹配字符长度，避免单字符匹配
+    includeScore: true, // 包含匹配分数
+    includeMatches: true, // 包含匹配信息
+    findAllMatches: true, // 查找所有匹配
+    ignoreLocation: true, // 忽略位置
+    shouldSort: true, // 按分数排序
+    useExtendedSearch: true, // 启用扩展搜索语法
+    // 搜索键配置
+    keys: [
+      {
+        name: 'title',
+        weight: 0.6 // 标题最重要
+      },
+      {
+        name: 'searchText',
+        weight: 0.3 // 组合搜索文本
+      },
+      {
+        name: 'url',
+        weight: 0.1 // URL权重最低
+      }
+    ]
+  },
+  
   // 搜索权重
   SEARCH_WEIGHTS: {
     EXACT_MATCH: 500,

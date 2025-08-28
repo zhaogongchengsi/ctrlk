@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js';
+import { SEARCH_CONFIG } from './search-config';
 
 export interface SearchResult {
   id: string;
@@ -65,33 +66,25 @@ export class SearchEngine {
   }
 
   private initializeFuse(): void {
-    // Fuse.js 配置，优化模糊搜索
+    // 使用配置文件中的 Fuse.js 选项，处理类型兼容性
     const fuseOptions = {
+      ...SEARCH_CONFIG.FUSE_OPTIONS,
       keys: [
         {
-          name: 'title',
-          weight: 0.6 // 标题最重要
+          name: 'title' as keyof IndexDocument,
+          weight: 0.6
         },
         {
-          name: 'searchText',
-          weight: 0.3 // 组合搜索文本
+          name: 'searchText' as keyof IndexDocument,
+          weight: 0.3
         },
         {
-          name: 'url',
-          weight: 0.1 // URL权重最低
+          name: 'url' as keyof IndexDocument,
+          weight: 0.1
         }
-      ],
-      threshold: 0.6, // 模糊匹配阈值 (0-1，越小越严格)
-      distance: 100, // 搜索距离
-      minMatchCharLength: 1, // 最小匹配字符长度
-      includeScore: true, // 包含匹配分数
-      includeMatches: true, // 包含匹配信息
-      findAllMatches: true, // 查找所有匹配
-      ignoreLocation: true, // 忽略位置
-      shouldSort: true, // 按分数排序
-      useExtendedSearch: true // 启用扩展搜索语法
+      ]
     };
-
+    
     this.fuse = new Fuse(this.documents, fuseOptions);
   }
 
@@ -197,8 +190,14 @@ export class SearchEngine {
       return [];
     }
 
+    const cleanQuery = query.trim().toLowerCase();
+    
+    // 应用最小查询长度限制
+    if (cleanQuery.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) {
+      return [];
+    }
+
     try {
-      const cleanQuery = query.trim().toLowerCase();
       
       // 使用Fuse.js进行多种搜索策略
       const searchStrategies = [
@@ -206,14 +205,14 @@ export class SearchEngine {
         { query: `="${cleanQuery}"`, boost: 100, description: 'exact' },
         // 2. 普通模糊搜索
         { query: cleanQuery, boost: 80, description: 'normal' },
-        // 3. 单词分解搜索
-        ...cleanQuery.split(/\s+/).filter(word => word.length > 1).map(word => ({
+        // 3. 单词分解搜索（只搜索长度大于等于最小长度的单词）
+        ...cleanQuery.split(/\s+/).filter(word => word.length >= SEARCH_CONFIG.MIN_QUERY_LENGTH).map(word => ({
           query: word,
           boost: 60,
           description: 'word'
         })),
-        // 4. 前缀搜索（Fuse.js扩展语法）
-        ...cleanQuery.split(/\s+/).filter(word => word.length > 2).map(word => ({
+        // 4. 前缀搜索（只对长度大于等于3的单词进行前缀搜索）
+        ...cleanQuery.split(/\s+/).filter(word => word.length >= 3).map(word => ({
           query: `^${word}`,
           boost: 70,
           description: 'prefix'
