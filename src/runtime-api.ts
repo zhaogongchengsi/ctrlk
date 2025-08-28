@@ -5,7 +5,6 @@
 
 import { CtrlKDialog, CtrlKDialogName } from './components/iframe-dialog';
 import { CLOSE_DIALOG, OPEN_DIALOG, TOGGLE_DIALOG } from './constant';
-import ExtensionDialogStateManager from './state/extension-dialog-state-manager';
 
 interface CtrlKConfig {
 	enableAutoClose?: boolean;
@@ -36,11 +35,9 @@ class CtrlKRuntime {
 		defaultHeight: '400px',
 		theme: 'auto'
 	};
-	private stateManager: ExtensionDialogStateManager;
 
 	constructor(config: Partial<CtrlKConfig> = {}) {
 		this.config = { ...this.config, ...config };
-		this.stateManager = new ExtensionDialogStateManager();
 		this.init();
 	}
 
@@ -55,6 +52,7 @@ class CtrlKRuntime {
 			if (event.source !== window) return;
 
 			if (event.data.type === 'CTRLK_COMMAND') {
+				console.log('Runtime received CTRLK_COMMAND:', event.data);
 				this.handleCommand(event.data);
 			}
 
@@ -65,27 +63,26 @@ class CtrlKRuntime {
 				}
 			}
 		});
-
-		// 订阅状态变化
-		this.stateManager.events$.subscribe(event => {
-			console.log('Dialog state event:', event);
-		});
 	}
 
 	private handleCommand(command: CtrlKCommand) {
+		console.log('Handling command:', command);
 		switch (command.action) {
 			case 'OPEN_DIALOG':
 				if (command.id && command.src) {
+					console.log('Opening dialog:', command.id, command.src);
 					this.openDialog(command.id, command.src, command.options);
 				}
 				break;
 			case 'CLOSE_DIALOG':
 				if (command.id) {
+					console.log('Closing dialog:', command.id);
 					this.closeDialog(command.id);
 				}
 				break;
 			case 'TOGGLE_DIALOG':
 				if (command.id) {
+					console.log('Toggling dialog:', command.id);
 					this.toggleDialog(command.id);
 				}
 				break;
@@ -96,6 +93,8 @@ class CtrlKRuntime {
 	 * 创建并打开一个 iframe dialog
 	 */
 	openDialog(id: string, src: string, options: DialogOptions = {}): CtrlKDialog {
+		console.log('Creating dialog:', id, src, options);
+		
 		// 如果 dialog 已存在，先关闭
 		if (this.dialogs.has(id)) {
 			this.closeDialog(id);
@@ -115,15 +114,17 @@ class CtrlKRuntime {
 
 		// 添加事件监听
 		dialog.addEventListener('dialog-close', () => {
+			console.log('Dialog closed:', id);
 			this.dialogs.delete(id);
 			dialog.remove();
-			// 使用状态管理器报告实际状态
-			this.stateManager.reportActualDialogState(id, false);
+			// 通知 background script 弹窗已关闭
+			this.notifyBackgroundDialogState(id, false);
 		});
 
 		dialog.addEventListener('dialog-open', () => {
-			// 使用状态管理器报告实际状态
-			this.stateManager.reportActualDialogState(id, true);
+			console.log('Dialog opened:', id);
+			// 通知 background script 弹窗已打开
+			this.notifyBackgroundDialogState(id, true);
 		});
 
 		// 添加到页面并存储引用
@@ -140,6 +141,7 @@ class CtrlKRuntime {
 	 * 关闭指定的 dialog
 	 */
 	closeDialog(id: string): boolean {
+		console.log('Closing dialog:', id);
 		const dialog = this.dialogs.get(id);
 		if (dialog) {
 			dialog.close();
@@ -221,7 +223,25 @@ class CtrlKRuntime {
 	destroy(): void {
 		this.closeAllDialogs();
 		this.dialogs.clear();
-		this.stateManager.destroy();
+	}
+
+	/**
+	 * 通知 background script 弹窗状态变化
+	 */
+	private notifyBackgroundDialogState(id: string, isOpen: boolean): void {
+		try {
+			if (typeof chrome !== 'undefined' && chrome.runtime) {
+				chrome.runtime.sendMessage({
+					type: 'DIALOG_STATE_CHANGE',
+					dialogId: id,
+					isOpen: isOpen
+				}).catch((error) => {
+					console.warn('Failed to notify background script:', error);
+				});
+			}
+		} catch (error) {
+			console.warn('Failed to notify background script:', error);
+		}
 	}
 }
 

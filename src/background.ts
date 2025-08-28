@@ -1,8 +1,7 @@
-import DialogStateManager from './state/dialog-state-manager';
 import { searchManager } from "./search/search-manager";
 
-// 全局状态管理器
-const globalStateManager = new DialogStateManager();
+// 简单的状态存储
+const dialogStates = new Map<string, { isOpen: boolean; tabId: number }>();
 
 // 初始化搜索引擎
 searchManager.initialize().catch(error => {
@@ -24,14 +23,17 @@ chrome.commands.onCommand.addListener(async (command) => {
 
 			const currentTabId = tab.id;
 			const dialogId = `main-dialog-${currentTabId}`;
-			const isCurrentTabOpen = globalStateManager.isDialogOpen(dialogId);
+			const currentState = dialogStates.get(dialogId);
+			const isCurrentTabOpen = currentState?.isOpen || false;
+
+			console.log('Current dialog state:', { dialogId, isCurrentTabOpen });
 
 			// 关闭所有其他标签页的弹窗
-			const currentStates = globalStateManager['dialogStates'].value;
-			for (const [existingDialogId, state] of currentStates.entries()) {
-				if (existingDialogId !== dialogId && state.isOpen && state.tabId && state.tabId !== currentTabId) {
+			for (const [existingDialogId, state] of dialogStates.entries()) {
+				if (existingDialogId !== dialogId && state.isOpen) {
 					await closeDialogInTab(state.tabId);
-					console.log('Sent close command to tab:', state.tabId);
+					state.isOpen = false;
+					console.log('Closed dialog in tab:', state.tabId);
 				}
 			}
 
@@ -39,12 +41,14 @@ chrome.commands.onCommand.addListener(async (command) => {
 			if (isCurrentTabOpen) {
 				// 当前标签页有弹窗，关闭它
 				await closeDialogInTab(currentTabId);
-				console.log('Sent close command to current tab:', currentTabId);
+				dialogStates.set(dialogId, { isOpen: false, tabId: currentTabId });
+				console.log('Closed dialog in current tab:', currentTabId);
 			} else {
 				// 当前标签页没有弹窗，打开它
 				const panelUrl = chrome.runtime.getURL('dist/index.html');
 				await openDialogInTab(currentTabId, panelUrl);
-				console.log('Sent open command to current tab:', currentTabId);
+				dialogStates.set(dialogId, { isOpen: true, tabId: currentTabId });
+				console.log('Opened dialog in current tab:', currentTabId);
 			}
 		} catch (error) {
 			console.error('Error toggling panel:', error);
@@ -56,6 +60,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 async function sendMessageToTab(tabId: number, message: unknown): Promise<boolean> {
 	try {
 		await chrome.tabs.sendMessage(tabId, message);
+		console.log('Message sent successfully to tab:', tabId, message);
 		return true;
 	} catch (error) {
 		console.error(`Failed to send message to tab ${tabId}:`, error);
@@ -65,33 +70,28 @@ async function sendMessageToTab(tabId: number, message: unknown): Promise<boolea
 
 // 辅助函数：在指定标签页打开对话框
 async function openDialogInTab(tabId: number, src: string): Promise<void> {
-	const dialogId = `main-dialog-${tabId}`;
-	
 	const success = await sendMessageToTab(tabId, {
-		type: 'DIALOG_COMMAND',
+		type: 'CTRLK_COMMAND',
 		action: 'OPEN_DIALOG',
-		dialogId,
-		src,
-		options: {}
+		id: `main-dialog-${tabId}`,
+		src: src
 	});
 
-	if (success) {
-		globalStateManager.openDialog(dialogId, tabId);
+	if (!success) {
+		console.error('Failed to open dialog in tab:', tabId);
 	}
 }
 
 // 辅助函数：在指定标签页关闭对话框
 async function closeDialogInTab(tabId: number): Promise<void> {
-	const dialogId = `main-dialog-${tabId}`;
-	
 	const success = await sendMessageToTab(tabId, {
-		type: 'DIALOG_COMMAND',
+		type: 'CTRLK_COMMAND',
 		action: 'CLOSE_DIALOG',
-		dialogId
+		id: `main-dialog-${tabId}`
 	});
 
-	if (success) {
-		globalStateManager.closeDialog(dialogId, tabId);
+	if (!success) {
+		console.error('Failed to close dialog in tab:', tabId);
 	}
 }
 
@@ -99,30 +99,26 @@ async function closeDialogInTab(tabId: number): Promise<void> {
 chrome.tabs.onRemoved.addListener((tabId) => {
 	console.log('Tab removed:', tabId);
 	// 清理该标签页的所有对话框状态
-	const currentStates = globalStateManager['dialogStates'].value;
-	for (const [dialogId, state] of currentStates.entries()) {
-		if (state.tabId === tabId) {
-			globalStateManager.removeDialog(dialogId);
-		}
+	const dialogId = `main-dialog-${tabId}`;
+	if (dialogStates.has(dialogId)) {
+		dialogStates.delete(dialogId);
+		console.log('Cleaned up dialog state for closed tab:', tabId);
 	}
 });
 
 // 监听来自 content script 的消息
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+	console.log('Background received message:', message, 'from sender:', sender);
+	
 	if (message.type === 'DIALOG_STATE_CHANGE' && sender.tab?.id) {
 		const tabId = sender.tab.id;
-		const dialogId = message.dialogId || `main-dialog-${tabId}`;
+		const dialogId = `main-dialog-${tabId}`;
 		const isOpen = message.isOpen;
 		
 		console.log(`Dialog ${dialogId} state changed for tab ${tabId}: ${isOpen}`);
-		globalStateManager.updateDialogState(dialogId, isOpen, tabId);
+		dialogStates.set(dialogId, { isOpen, tabId });
 		
 		sendResponse({ success: true });
-	}
-	
-	if (message.type === 'GET_DIALOG_STATE' && message.dialogId) {
-		const state = globalStateManager.getDialogState(message.dialogId);
-		sendResponse({ state });
 	}
 	
 	// 返回 true 表示我们可能会异步发送响应

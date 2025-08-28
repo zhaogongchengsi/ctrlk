@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsdown'
+import pkg from './package.json' assert { type: 'json' }
 
 export default ['./src/content-script.ts', './src/runtime-api.ts', './src/background.ts'].map(entry => {
 	return defineConfig({
@@ -8,7 +9,7 @@ export default ['./src/content-script.ts', './src/runtime-api.ts', './src/backgr
 		outputOptions: {
 			entryFileNames: '[name].js',
 		},
-		noExternal: ["fuse.js", "gsap", "rxjs", "rxjs/operators"],
+		noExternal: Object.keys(pkg.dependencies || {}),
 		outDir: 'extension/dist',
 	})
 })
