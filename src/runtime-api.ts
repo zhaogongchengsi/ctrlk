@@ -66,23 +66,19 @@ class CtrlKRuntime {
 	}
 
 	private handleCommand(command: CtrlKCommand) {
-		console.log('Handling command:', command);
 		switch (command.action) {
 			case 'OPEN_DIALOG':
 				if (command.id && command.src) {
-					console.log('Opening dialog:', command.id, command.src);
 					this.openDialog(command.id, command.src, command.options);
 				}
 				break;
 			case 'CLOSE_DIALOG':
 				if (command.id) {
-					console.log('Closing dialog:', command.id);
 					this.closeDialog(command.id);
 				}
 				break;
 			case 'TOGGLE_DIALOG':
 				if (command.id) {
-					console.log('Toggling dialog:', command.id);
 					this.toggleDialog(command.id);
 				}
 				break;
@@ -92,9 +88,7 @@ class CtrlKRuntime {
 	/**
 	 * 创建并打开一个 iframe dialog
 	 */
-	openDialog(id: string, src: string, options: DialogOptions = {}): CtrlKDialog {
-		console.log('Creating dialog:', id, src, options);
-		
+	openDialog(id: string, src: string, options: DialogOptions = {}): CtrlKDialog {		
 		// 如果 dialog 已存在，先关闭
 		if (this.dialogs.has(id)) {
 			this.closeDialog(id);
@@ -114,7 +108,6 @@ class CtrlKRuntime {
 
 		// 添加事件监听
 		dialog.addEventListener('dialog-close', () => {
-			console.log('Dialog close event fired for:', id);
 			this.dialogs.delete(id);
 			dialog.remove();
 			// 通知 background script 弹窗已关闭
@@ -122,7 +115,6 @@ class CtrlKRuntime {
 		});
 
 		dialog.addEventListener('dialog-open', () => {
-			console.log('Dialog open event fired for:', id);
 			// 通知 background script 弹窗已打开
 			this.notifyBackgroundDialogState(id, true);
 		});
@@ -141,7 +133,6 @@ class CtrlKRuntime {
 	 * 关闭指定的 dialog
 	 */
 	closeDialog(id: string): boolean {
-		console.log('Closing dialog:', id);
 		const dialog = this.dialogs.get(id);
 		if (dialog) {
 			dialog.close();
@@ -229,7 +220,6 @@ class CtrlKRuntime {
 	 * 通知 background script 弹窗状态变化
 	 */
 	private notifyBackgroundDialogState(id: string, isOpen: boolean): void {
-		console.log('Notifying background dialog state:', id, isOpen);
 		try {
 			// 通过 postMessage 发送给 content script，由 content script 转发给 background
 			window.postMessage({
