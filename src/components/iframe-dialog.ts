@@ -286,9 +286,6 @@ class CtrlKDialog extends HTMLElement {
 
 	// 公共方法
 	open() {
-		// 禁用页面滚动
-		document.body.style.overflow = 'hidden';
-		
 		// 通知子页面即将被展示
 		this.notifyChildPageLifecycle('will-show');
 		
