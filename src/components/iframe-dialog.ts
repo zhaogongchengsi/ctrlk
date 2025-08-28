@@ -324,11 +324,13 @@ class CtrlKDialog extends HTMLElement {
 		// 通知子页面即将被展示
 		this.notifyChildPageLifecycle('will-show');
 		
-		// 设置初始状态
+		// 设置初始状态 - 保持居中定位
 		gsap.set(this.dialog, {
 			opacity: 0,
 			scale: 0.9,
-			transformOrigin: 'center center'
+			transformOrigin: 'center center',
+			x: '-50%',
+			y: '-50%'
 		});
 		
 		this.dialog.showModal();
@@ -350,10 +352,12 @@ class CtrlKDialog extends HTMLElement {
 			ease: 'power2.out'
 		}, 0);
 
-		// 弹窗缩放和弹性进入
+		// 弹窗缩放和弹性进入 - 保持居中
 		this.animationTimeline.to(this.dialog, {
 			duration: 0.4,
 			scale: 1,
+			x: '-50%',
+			y: '-50%',
 			ease: 'back.out(1.7)'
 		}, 0.1);
 		
@@ -395,11 +399,13 @@ class CtrlKDialog extends HTMLElement {
 			}
 		});
 
-		// 弹窗缩小和淡出
+		// 弹窗缩小和淡出 - 保持居中
 		closeTimeline.to(this.dialog, {
 			duration: 0.25,
 			scale: 0.95,
 			opacity: 0,
+			x: '-50%',
+			y: '-50%',
 			ease: 'power2.in'
 		});
 	}
