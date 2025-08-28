@@ -63,7 +63,7 @@ function App() {
         debounceMs={150}
         maxHeight={600} // 设置最大高度为 600px
         enableScrollCheck={true}
-        className="rounded-lg border shadow-lg bg-white/95 backdrop-blur-sm w-full"
+        className="rounded-xl border border-gray-200/60 shadow-2xl bg-white/98 backdrop-blur-md w-full overflow-hidden"
       >
         <Command className="w-full">
           <CommandInput
