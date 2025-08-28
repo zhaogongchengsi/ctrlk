@@ -95,12 +95,31 @@ class CtrlKDialog extends HTMLElement {
         outline: none;
       }
 
-      /* 完全透明的背景 */
+      /* 自适应主题的蒙板背景 */
       dialog::backdrop {
-        background: transparent;
-        backdrop-filter: none;
+        background: rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(12px) saturate(1.8);
+        -webkit-backdrop-filter: blur(12px) saturate(1.8);
         opacity: 0;
-        transition: none;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* 深色主题蒙板 */
+      @media (prefers-color-scheme: dark) {
+        dialog::backdrop {
+          background: rgba(0, 0, 0, 0.7);
+          backdrop-filter: blur(16px) saturate(1.5);
+          -webkit-backdrop-filter: blur(16px) saturate(1.5);
+        }
+      }
+
+      /* 浅色主题蒙板 */
+      @media (prefers-color-scheme: light) {
+        dialog::backdrop {
+          background: rgba(0, 0, 0, 0.3);
+          backdrop-filter: blur(12px) saturate(2);
+          -webkit-backdrop-filter: blur(12px) saturate(2);
+        }
       }
 
       dialog[open]::backdrop {
@@ -179,6 +198,116 @@ class CtrlKDialog extends HTMLElement {
 		this.dialog.appendChild(this.iframe);
 
 		this.setupEventListeners();
+		this.setupThemeDetection();
+	}
+
+	// 设置主题检测
+	private setupThemeDetection() {
+		// 初始主题设置
+		this.updateBackdropTheme();
+
+		// 监听系统主题变化
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQuery.addEventListener('change', () => {
+			this.updateBackdropTheme();
+		});
+
+		// 监听页面主题变化（检测页面是否有深色主题类名）
+		const observer = new MutationObserver(() => {
+			this.updateBackdropTheme();
+		});
+
+		observer.observe(document.documentElement, {
+			attributes: true,
+			attributeFilter: ['class', 'data-theme', 'data-color-scheme']
+		});
+
+		observer.observe(document.body, {
+			attributes: true,
+			attributeFilter: ['class', 'data-theme', 'data-color-scheme']
+		});
+	}
+
+	// 更新蒙板主题
+	private updateBackdropTheme() {
+		// 检测当前主题
+		const isDark = this.detectDarkTheme();
+		
+		// 动态设置蒙板样式
+		const style = this.shadow.querySelector('style');
+		if (style) {
+			// 移除旧的主题样式
+			style.textContent = style.textContent!.replace(
+				/\/\* 动态主题蒙板 \*\/[\s\S]*?\/\* 动态主题蒙板结束 \*\//g, 
+				''
+			);
+			
+			// 添加新的主题样式
+			const themeStyle = `
+      /* 动态主题蒙板 */
+      dialog::backdrop {
+        background: ${isDark 
+          ? 'rgba(0, 0, 0, 0.75)' 
+          : 'rgba(0, 0, 0, 0.35)'} !important;
+        backdrop-filter: ${isDark 
+          ? 'blur(20px) saturate(1.4)' 
+          : 'blur(16px) saturate(2.2)'} !important;
+        -webkit-backdrop-filter: ${isDark 
+          ? 'blur(20px) saturate(1.4)' 
+          : 'blur(16px) saturate(2.2)'} !important;
+      }
+      /* 动态主题蒙板结束 */`;
+			
+			style.textContent += themeStyle;
+		}
+	}
+
+	// 检测深色主题
+	private detectDarkTheme(): boolean {
+		// 1. 检查系统偏好
+		const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		
+		// 2. 检查页面类名
+		const htmlClasses = document.documentElement.className;
+		const bodyClasses = document.body.className;
+		const darkClassPatterns = /dark|night|black/i;
+		
+		const hasPageDarkClass = darkClassPatterns.test(htmlClasses) || darkClassPatterns.test(bodyClasses);
+		
+		// 3. 检查常见的主题属性
+		const htmlTheme = document.documentElement.getAttribute('data-theme') || 
+		                  document.documentElement.getAttribute('data-color-scheme');
+		const bodyTheme = document.body.getAttribute('data-theme') || 
+		                  document.body.getAttribute('data-color-scheme');
+		
+		const hasThemeAttr = darkClassPatterns.test(htmlTheme || '') || darkClassPatterns.test(bodyTheme || '');
+		
+		// 4. 检查背景色
+		const bodyBgColor = getComputedStyle(document.body).backgroundColor;
+		const htmlBgColor = getComputedStyle(document.documentElement).backgroundColor;
+		
+		// 简单的亮度检测（如果背景是深色）
+		const isDarkBackground = this.isColorDark(bodyBgColor) || this.isColorDark(htmlBgColor);
+		
+		// 优先级：页面明确设置的主题 > 背景色检测 > 系统偏好
+		return hasPageDarkClass || hasThemeAttr || isDarkBackground || prefersDark;
+	}
+
+	// 检测颜色是否为深色
+	private isColorDark(color: string): boolean {
+		// 解析RGB颜色
+		const rgb = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+		if (!rgb) return false;
+		
+		const r = parseInt(rgb[1]);
+		const g = parseInt(rgb[2]);
+		const b = parseInt(rgb[3]);
+		
+		// 计算亮度 (0-255)
+		const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+		
+		// 亮度小于128认为是深色
+		return brightness < 128;
 	}
 
 	private setupEventListeners() {
@@ -323,6 +452,9 @@ class CtrlKDialog extends HTMLElement {
 	open() {
 		// 通知子页面即将被展示
 		this.notifyChildPageLifecycle('will-show');
+		
+		// 更新蒙板主题
+		this.updateBackdropTheme();
 		
 		// 设置初始状态 - 保持居中定位
 		gsap.set(this.dialog, {
