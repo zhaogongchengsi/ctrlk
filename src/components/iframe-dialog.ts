@@ -5,6 +5,7 @@
  */
 
 import { gsap } from 'gsap';
+import { DIALOG_BORDER_RADIUS_SIZE } from '../constant';
 
 export const CtrlKDialogName = 'ctrlk-dialog';
 
@@ -30,48 +31,58 @@ class CtrlKDialog extends HTMLElement {
 	}
 
 	private init() {
-		// 创建样式
+		// 创建样式 - 只保留基础功能性样式，提供CSS自定义属性供子页面使用
 		const style = document.createElement('style');
 		style.textContent = `
       :host {
+        /* 可被子页面覆盖的CSS自定义属性 */
         --dialog-width: 600px;
         --dialog-min-height: 0;
         --dialog-max-height: 66.67vh;
-        --dialog-bg: rgba(0, 0, 0, 0.5);
-        --content-bg: white;
-        --border-radius: 12px;
-        --shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        
+        /* 基础定位 */
         position: fixed;
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
         z-index: 9998;
-        pointer-events: none; /* 允许背景点击穿透到 dialog */
+        pointer-events: none;
       }
 
       dialog {
+        /* 基础尺寸和定位 - 可被CSS自定义属性覆盖 */
         border: none;
-        border-radius: var(--border-radius);
         padding: 0;
+        margin: 0;
         width: var(--dialog-width);
         min-height: var(--dialog-min-height);
         max-height: var(--dialog-max-height);
         max-width: 90vw;
-        background: var(--content-bg);
-        box-shadow: var(--shadow);
+        
+        /* 定位 */
         position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%) scale(0.9);
-        resize: vertical;
+        
+        /* 禁用拖拽和调整大小 */
+        resize: none;
+        user-select: none;
+        -webkit-user-drag: none;
+        
+        /* 功能性设置 */
         overflow: hidden;
-        outline: none; /* 移除默认聚焦轮廓 */
-        z-index: 9999; /* 确保在最顶层 */
-        pointer-events: auto; /* 恢复dialog的点击事件 */
-        margin: 0; /* 移除默认margin */
+        outline: none;
+        z-index: 9999;
+        pointer-events: auto;
         opacity: 0;
         transition: none; /* 禁用CSS过渡，使用GSAP控制 */
+        
+        /* 完全透明的基础样式，所有装饰由子页面控制 */
+        background: transparent;
+        box-shadow: none;
+        border-radius: ${DIALOG_BORDER_RADIUS_SIZE};
       }
 
       dialog[open] {
@@ -79,16 +90,17 @@ class CtrlKDialog extends HTMLElement {
         transform: translate(-50%, -50%) scale(1);
       }
 
+      /* 完全移除聚焦轮廓 */
       dialog:focus {
-        outline: 2px solid rgba(59, 130, 246, 0.5); /* 自定义聚焦样式 */
-        outline-offset: 2px;
+        outline: none;
       }
 
+      /* 完全透明的背景 */
       dialog::backdrop {
-        background: var(--dialog-bg);
-        backdrop-filter: blur(4px);
+        background: transparent;
+        backdrop-filter: none;
         opacity: 0;
-        transition: none; /* 禁用CSS过渡，使用GSAP控制 */
+        transition: none;
       }
 
       dialog[open]::backdrop {
@@ -96,30 +108,52 @@ class CtrlKDialog extends HTMLElement {
       }
 
       iframe {
+        /* 基础尺寸 */
         width: 100%;
         height: 100%;
         border: none;
-        border-radius: var(--border-radius);
         display: block;
+        border-radius: ${DIALOG_BORDER_RADIUS_SIZE};
+        
+        /* 移除所有默认样式 */
+        outline: none;
+        background: transparent;
       }
 
+      /* 最小化的加载指示器，可被子页面完全自定义 */
       .loading {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-direction: column;
-        height: 200px;
-        color: #6b7280;
         gap: 12px;
+        background: transparent;
+        z-index: 1;
+        
+        /* 提供CSS自定义属性供子页面覆盖 */
+        color: var(--loading-color, rgba(0, 0, 0, 0.6));
+        font-family: var(--loading-font, system-ui, -apple-system, sans-serif);
+        font-size: var(--loading-font-size, 14px);
       }
 
       .loading-spinner {
-        width: 24px;
-        height: 24px;
-        border: 2px solid #e5e7eb;
-        border-top: 2px solid #3b82f6;
+        width: var(--spinner-size, 24px);
+        height: var(--spinner-size, 24px);
+        border: 2px solid var(--spinner-track, rgba(0, 0, 0, 0.1));
+        border-top: 2px solid var(--spinner-color, rgba(0, 0, 0, 0.6));
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        animation: spin var(--spinner-duration, 1s) linear infinite;
+      }
+
+      .loading-text {
+        color: inherit;
+        font-size: inherit;
+        font-family: inherit;
       }
 
       @keyframes spin {
@@ -128,11 +162,11 @@ class CtrlKDialog extends HTMLElement {
       }
     `;
 
-		// 创建 dialog 结构 - 移除头部，只保留 iframe
+		// 创建 dialog 结构 - 最简结构，只有必要的加载指示器
 		this.dialog.innerHTML = `
       <div class="loading">
         <div class="loading-spinner"></div>
-        <div>Loading...</div>
+        <div class="loading-text">Loading...</div>
       </div>
     `;
 
@@ -185,7 +219,6 @@ class CtrlKDialog extends HTMLElement {
 			// 等待一个短暂延迟确保高度调整完成后，再开始加载完成动画
 			requestAnimationFrame(() => {
 				const loadCompleteTimeline = gsap.timeline();
-				
 				// 淡出加载指示器
 				if (loadingElement) {
 					loadCompleteTimeline.to(loadingElement, {
