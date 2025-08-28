@@ -114,7 +114,7 @@ class CtrlKRuntime {
 
 		// 添加事件监听
 		dialog.addEventListener('dialog-close', () => {
-			console.log('Dialog closed:', id);
+			console.log('Dialog close event fired for:', id);
 			this.dialogs.delete(id);
 			dialog.remove();
 			// 通知 background script 弹窗已关闭
@@ -122,7 +122,7 @@ class CtrlKRuntime {
 		});
 
 		dialog.addEventListener('dialog-open', () => {
-			console.log('Dialog opened:', id);
+			console.log('Dialog open event fired for:', id);
 			// 通知 background script 弹窗已打开
 			this.notifyBackgroundDialogState(id, true);
 		});
@@ -229,16 +229,17 @@ class CtrlKRuntime {
 	 * 通知 background script 弹窗状态变化
 	 */
 	private notifyBackgroundDialogState(id: string, isOpen: boolean): void {
+		console.log('Notifying background dialog state:', id, isOpen);
 		try {
-			if (typeof chrome !== 'undefined' && chrome.runtime) {
-				chrome.runtime.sendMessage({
+			// 通过 postMessage 发送给 content script，由 content script 转发给 background
+			window.postMessage({
+				type: 'NOTIFY_BACKGROUND',
+				payload: {
 					type: 'DIALOG_STATE_CHANGE',
 					dialogId: id,
 					isOpen: isOpen
-				}).catch((error) => {
-					console.warn('Failed to notify background script:', error);
-				});
-			}
+				}
+			}, '*');
 		} catch (error) {
 			console.warn('Failed to notify background script:', error);
 		}

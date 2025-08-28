@@ -26,14 +26,14 @@ chrome.commands.onCommand.addListener(async (command) => {
 			const currentState = dialogStates.get(dialogId);
 			const isCurrentTabOpen = currentState?.isOpen || false;
 
-			console.log('Current dialog state:', { dialogId, isCurrentTabOpen });
+			console.log('Current dialog state:', { dialogId, isCurrentTabOpen, allStates: Array.from(dialogStates.entries()) });
 
 			// 关闭所有其他标签页的弹窗
 			for (const [existingDialogId, state] of dialogStates.entries()) {
 				if (existingDialogId !== dialogId && state.isOpen) {
 					await closeDialogInTab(state.tabId);
-					state.isOpen = false;
-					console.log('Closed dialog in tab:', state.tabId);
+					// 不立即更新状态，等待实际的关闭确认
+					console.log('Sent close command to tab:', state.tabId);
 				}
 			}
 
@@ -41,14 +41,14 @@ chrome.commands.onCommand.addListener(async (command) => {
 			if (isCurrentTabOpen) {
 				// 当前标签页有弹窗，关闭它
 				await closeDialogInTab(currentTabId);
-				dialogStates.set(dialogId, { isOpen: false, tabId: currentTabId });
-				console.log('Closed dialog in current tab:', currentTabId);
+				// 不立即更新状态，等待确认
+				console.log('Sent close command to current tab:', currentTabId);
 			} else {
 				// 当前标签页没有弹窗，打开它
 				const panelUrl = chrome.runtime.getURL('dist/index.html');
 				await openDialogInTab(currentTabId, panelUrl);
-				dialogStates.set(dialogId, { isOpen: true, tabId: currentTabId });
-				console.log('Opened dialog in current tab:', currentTabId);
+				// 不立即更新状态，等待确认
+				console.log('Sent open command to current tab:', currentTabId);
 			}
 		} catch (error) {
 			console.error('Error toggling panel:', error);
@@ -112,11 +112,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 	
 	if (message.type === 'DIALOG_STATE_CHANGE' && sender.tab?.id) {
 		const tabId = sender.tab.id;
-		const dialogId = `main-dialog-${tabId}`;
+		const dialogId = message.dialogId || `main-dialog-${tabId}`;
 		const isOpen = message.isOpen;
 		
 		console.log(`Dialog ${dialogId} state changed for tab ${tabId}: ${isOpen}`);
+		console.log('Previous state:', dialogStates.get(dialogId));
+		
+		// 更新状态
 		dialogStates.set(dialogId, { isOpen, tabId });
+		
+		console.log('Updated state:', dialogStates.get(dialogId));
+		console.log('All states after update:', Array.from(dialogStates.entries()));
 		
 		sendResponse({ success: true });
 	}
