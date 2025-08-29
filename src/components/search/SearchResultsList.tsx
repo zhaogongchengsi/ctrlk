@@ -25,7 +25,7 @@ export default function SearchResultsList({
   className = '',
 }: SearchResultsListProps) {
   const { tabs, bookmarks, history } = results;
-  const totalResults = tabs.length + bookmarks.length + history.length;
+  // const totalResults = tabs.length + bookmarks.length + history.length;
 
   return (
     <CommandList className={className}>
@@ -70,13 +70,6 @@ export default function SearchResultsList({
         maxResults={maxResultsPerGroup}
         showSeparator={false}
       />
-
-      {/* 结果统计 */}
-      {totalResults > 0 && process.env.NODE_ENV === 'development' && (
-        <div className="px-3 py-2 text-xs text-gray-400 text-center border-t border-gray-100 mt-2">
-          共找到 {totalResults} 个结果
-        </div>
-      )}
     </CommandList>
   );
 }

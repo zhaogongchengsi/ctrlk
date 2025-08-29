@@ -210,14 +210,140 @@
   * {
     @apply border-border outline-ring/50;
   }
-  html, body, #root {
+
+  html,
+  body,
+  #root {
     @apply bg-transparent text-foreground;
     min-height: 400px;
     margin: 0;
     padding: 0;
     background-color: var(--app-bg);
   }
+
   body {
     overflow: hidden;
   }
+}
+
+border animation {
+  box-shadow: rgb(52, 52, 52) 0px 0px 0px 1px;
+}
+
+shine animation {
+  opacity: 0;
+  background-position-x: 200%;
+  background-position-y: 50%;
+}
+
+@keyframes border {
+  100% {
+    box-shadow: 0 0 0 1px var(--gray6)
+  }
+}
+
+@keyframes shine {
+  0% {
+    background-position-x: -200%;
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    background-position-x: 200%;
+    opacity: 0;
+  }
+}
+
+.ctrl-k-command {
+  position: relative;
+  box-shadow: var(--cmdk-shadow);
+  padding: 8px 0;
+  font-family: var(--font-sans);
+}
+
+.ctrl-k-command::before {
+  content: "";
+  z-index: -1;
+  position: absolute;
+  border-radius: 12px;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  box-shadow: rgb(52, 52, 52) 0px 0px 0px 1px;
+  animation: border 2s ease-in-out infinite alternate;
+  box-sizing: border-box;
+}
+
+.ctrl-k-command::after {
+  content: "";
+  z-index: -1;
+  position: absolute;
+  border-radius: 12px;
+  top: -1px;
+  left: -1px;
+  width: calc(100% + 2px);
+  height: calc(100% + 2px);
+  background: linear-gradient(90deg,
+      transparent 0%,
+      var(--gray6) 20%,
+      var(--gray10) 50%,
+      var(--gray6) 80%,
+      transparent 100%);
+  animation: shine 6s ease .1s forwards;
+  background-size: 200% auto;
+  box-sizing: border-box;
+}
+
+.ctrlk-command-input {
+  font-family: var(--font-sans);
+  border: none;
+  width: 100%;
+  font-size: 15px;
+  padding: 8px 16px;
+  outline: none;
+  background: var(--bg);
+  color: var(--gray12);
+}
+
+.ctrlk-raycast-loader {
+  --loader-color: var(--gray9);
+  border: 0;
+  width: 100%;
+  left: 0;
+  height: 1px;
+  background: var(--gray6);
+  position: relative;
+  overflow: visible;
+  display: block;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.ctrlk-raycast-loader:after {
+  content: "";
+  width: 50%;
+  height: 1px;
+  position: absolute;
+  background: linear-gradient(90deg, transparent 0, var(--loader-color) 50%, transparent 100%);
+  top: -1px;
+  opacity: 0;
+  animation-duration: 1.5s;
+  animation-delay: 1s;
+  animation-timing-function: ease;
+  animation-name: loading;
+}
+
+.ctrlk-command-list {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block-end: 40px;
+  transition: .1s ease;
+  transition-property: height;
+  padding: 0 8px 40px;
+  max-height: 400px;
 }

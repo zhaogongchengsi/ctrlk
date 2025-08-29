@@ -1,7 +1,7 @@
 import React from 'react';
 import { CommandItem } from "@/components/ui/command";
 import { SEARCH_CONFIG } from '@/search/search-config';
-import { PreciseHighlightText } from './PreciseHighlightText';
+import { PreciseHighlightText } from '../PreciseHighlightText';
 import type { SearchResult } from '@/search/search-api';
 
 interface SearchResultItemProps {

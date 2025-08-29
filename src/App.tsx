@@ -1,6 +1,6 @@
 import { Command, CommandInput } from "@/components/ui/command";
 import CommandWrapper from "./components/CommandWrapper";
-import SearchResultsList from "./components/SearchResultsList";
+import SearchResultsList from "./components/search/SearchResultsList";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { createDebouncedSearch, openSearchResult, groupSearchResults } from "./search/search-api";
 import type { SearchResult } from "./search/search-api";

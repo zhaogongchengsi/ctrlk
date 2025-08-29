@@ -1,6 +1,5 @@
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
-import { SearchIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Dialog,
@@ -18,12 +17,12 @@ function Command({
     <CommandPrimitive
       data-slot="command"
       className={cn(
-        "bg-popover text-popover-foreground flex h-full w-full flex-col overflow-hidden rounded-md",
-        className
+        "bg-[var(--gray2)] flex h-full w-full flex-col rounded-md ctrl-k-command",
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function CommandDialog({
@@ -62,18 +61,11 @@ const CommandInput = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof CommandPrimitive.Input>
 >(({ className, ...props }, ref) => {
   return (
-    <div
-      data-slot="command-input-wrapper"
-      className="flex h-16 items-center gap-3 px-6 border-b border-gray-100/50 dark:border-gray-700/50 bg-gradient-to-r dark:bg-[var(--gray2)] backdrop-blur-sm"
-    >
-      <SearchIcon className="size-5 shrink-0 text-gray-400 dark:text-gray-500 transition-colors duration-200" />
+    <div data-slot="command-input-wrapper">
       <CommandPrimitive.Input
         ref={ref}
         data-slot="command-input"
-        className={cn(
-          "placeholder:text-gray-400 dark:placeholder:text-gray-500 flex h-12 w-full bg-transparent text-base font-medium text-gray-900 dark:text-gray-100 outline-hidden disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200 focus:placeholder:text-gray-300 dark:focus:placeholder:text-gray-600",
-          className,
-        )}
+        className={cn("ctrlk-command-input", className)}
         {...props}
       />
     </div>
@@ -86,15 +78,8 @@ function CommandList({
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.List>) {
   return (
-    <CommandPrimitive.List
-      data-slot="command-list"
-      className={cn(
-        "max-h-[300px] scroll-py-1 overflow-x-hidden overflow-y-auto",
-        className
-      )}
-      {...props}
-    />
-  )
+    <CommandPrimitive.List data-slot="cmdk-command-list" className={cn("ctrlk-command-list", className)} {...props} />
+  );
 }
 
 function CommandEmpty({
