@@ -16,7 +16,7 @@ export const PreciseHighlightText: React.FC<PreciseHighlightTextProps> = ({
   text,
   highlights,
   className = "",
-  highlightClassName = "bg-blue-50 text-blue-800 rounded-sm"
+  highlightClassName = ""
 }) => {
   // 如果没有高亮信息，直接返回原文本
   if (!highlights || highlights.length === 0) {

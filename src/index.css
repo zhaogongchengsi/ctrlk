@@ -211,6 +211,14 @@
     @apply border-border outline-ring/50;
   }
 
+  *,
+  :after,
+  :before {
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
   html,
   body,
   #root {
@@ -219,6 +227,7 @@
     margin: 0;
     padding: 0;
     background-color: var(--app-bg);
+    font-family: var(--font-sans);
   }
 
   body {
@@ -243,15 +252,6 @@ shine animation {
 }
 
 @keyframes shine {
-  0% {
-    background-position-x: -200%;
-    opacity: 0;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
   100% {
     background-position-x: 200%;
     opacity: 0;
@@ -344,6 +344,55 @@ shine animation {
   scroll-padding-block-end: 40px;
   transition: .1s ease;
   transition-property: height;
-  padding: 0 8px 40px;
   max-height: 400px;
+
+  padding-right: 4px;
+  /* 为滚动条预留空间，防止内容跳动 */
+  padding-left: 15px;
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray6) transparent;
+
+  outline: none;
+}
+
+/* Webkit 浏览器滚动条样式 */
+.ctrlk-command-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ctrlk-command-list::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+.ctrlk-command-list::-webkit-scrollbar-thumb {
+  background: var(--gray6);
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+
+.ctrlk-command-list::-webkit-scrollbar-thumb:hover {
+  background: var(--gray8);
+}
+
+.ctrlk-command-list::-webkit-scrollbar-thumb:active {
+  background: var(--gray9);
+}
+
+/* 深色模式下的滚动条样式 */
+.dark .ctrlk-command-list {
+  scrollbar-color: var(--gray6) transparent;
+}
+
+.dark .ctrlk-command-list::-webkit-scrollbar-thumb {
+  background: var(--gray6);
+}
+
+.dark .ctrlk-command-list::-webkit-scrollbar-thumb:hover {
+  background: var(--gray8);
+}
+
+.dark .ctrlk-command-list::-webkit-scrollbar-thumb:active {
+  background: var(--gray9);
 }

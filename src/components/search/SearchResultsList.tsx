@@ -1,6 +1,5 @@
 import { CommandList, CommandEmpty } from "@/components/ui/command";
 import { SearchResultGroup } from './SearchResultGroup';
-import { SearchSeparator } from './SearchSeparator';
 import type { SearchResult } from '@/search/search-api';
 
 interface GroupedSearchResults {
@@ -41,10 +40,6 @@ export default function SearchResultsList({
         showSeparator={false}
       />
 
-      {/* 分隔符：标签页和书签之间 */}
-      <SearchSeparator 
-        show={tabs.length > 0 && (bookmarks.length > 0 || history.length > 0)}
-      />
 
       {/* 书签组 */}
       <SearchResultGroup
@@ -54,11 +49,6 @@ export default function SearchResultsList({
         onSelectResult={onSelectResult}
         maxResults={maxResultsPerGroup}
         showSeparator={false}
-      />
-
-      {/* 分隔符：书签和历史记录之间 */}
-      <SearchSeparator 
-        show={(tabs.length > 0 || bookmarks.length > 0) && history.length > 0}
       />
 
       {/* 历史记录组 */}

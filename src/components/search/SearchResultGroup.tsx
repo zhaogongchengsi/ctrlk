@@ -29,7 +29,6 @@ const getTypeDisplayName = (type: SearchResult['type']): string => {
 
 export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
   title,
-  icon,
   results,
   onSelectResult,
   showSeparator = false,
@@ -52,7 +51,7 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
       
       {/* 结果组 */}
       <CommandGroup 
-        heading={`${icon} ${title} (${results.length})`}
+        heading={`${title} (${results.length})`}
         className={className}
       >
         {displayResults.map((result) => (
