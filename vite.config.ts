@@ -14,5 +14,11 @@ export default defineConfig({
   },
   build: {
     outDir: "extension/dist",
+    rollupOptions: {
+      input: {
+        index: path.resolve(__dirname, "index.html"),
+        start: path.resolve(__dirname, "start.html")
+      }
+    }
   }
 })
