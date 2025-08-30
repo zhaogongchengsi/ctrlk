@@ -31,6 +31,9 @@
       "128": "./dist/logo.png"
     }
   },
+  "chrome_url_overrides": {
+    "newtab": "dist/start.html"
+  },
   "icons": {
     "16": "./dist/logo.png",
     "32": "./dist/logo.png",
