@@ -1,5 +1,6 @@
 import SearchResultsList from "@/components/search/SearchResultsList";
 import { Command, CommandInput } from "@/components/ui/command";
+import { LoaderOne } from "@/components/ui/loader";
 import { groupSearchResults, openSearchResult, RxSearchManager } from "@/search/search-api";
 import type { SearchResult } from "@/search/search-engine";
 import { useCallback, useState, useEffect, useRef } from "react";
@@ -65,20 +66,26 @@ export default function PageChat() {
   const groupedResults = groupSearchResults(results);
 
   return (
-    <div className="w-full md:w-200">
-      <Command className="w-full min-h-[500px]">
-        <CommandInput 
-          onValueChange={performSearch} 
-          placeholder="搜索书签、标签页、历史记录和建议..." 
+    <div className="w-full md:w-200 mx-auto">
+      <Command className="w-full">
+        <CommandInput
+          onValueChange={performSearch}
+          placeholder="搜索书签、标签页、历史记录和建议..."
           value={currentQuery}
         />
-        {loading && <div className="ctrlk-raycast-loader" />}
-        <SearchResultsList
-          results={groupedResults}
-          onSelectResult={handleResultSelect}
-          maxResultsPerGroup={10}
-          emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
-        />
+        <div className="ctrlk-raycast-loader" />
+        {loading ? (
+          <div className="flex h-40 items-center justify-center">
+            <LoaderOne />
+          </div>
+        ) : (
+          <SearchResultsList
+            results={groupedResults}
+            onSelectResult={handleResultSelect}
+            maxResultsPerGroup={10}
+            emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
+          />
+        )}
       </Command>
     </div>
   );
