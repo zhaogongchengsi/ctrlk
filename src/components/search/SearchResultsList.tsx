@@ -6,6 +6,7 @@ interface GroupedSearchResults {
   tabs: SearchResult[];
   bookmarks: SearchResult[];
   history: SearchResult[];
+  suggestions: SearchResult[];
 }
 
 interface SearchResultsListProps {
@@ -23,8 +24,8 @@ export default function SearchResultsList({
   emptyMessage = '暂无搜索结果',
   className = '',
 }: SearchResultsListProps) {
-  const { tabs, bookmarks, history } = results;
-  // const totalResults = tabs.length + bookmarks.length + history.length;
+  const { tabs, bookmarks, history, suggestions } = results;
+  // const totalResults = tabs.length + bookmarks.length + history.length + suggestions.length;
 
   return (
     <CommandList className={className}>
@@ -39,7 +40,6 @@ export default function SearchResultsList({
         maxResults={maxResultsPerGroup}
         showSeparator={false}
       />
-
 
       {/* 书签组 */}
       <SearchResultGroup
@@ -56,6 +56,16 @@ export default function SearchResultsList({
         title="历史记录"
         icon="📚"
         results={history}
+        onSelectResult={onSelectResult}
+        maxResults={maxResultsPerGroup}
+        showSeparator={false}
+      />
+
+      {/* 搜索建议组 */}
+      <SearchResultGroup
+        title="搜索建议"
+        icon="🔍"
+        results={suggestions}
         onSelectResult={onSelectResult}
         maxResults={maxResultsPerGroup}
         showSeparator={false}

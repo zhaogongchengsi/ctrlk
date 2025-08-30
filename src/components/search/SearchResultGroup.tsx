@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommandGroup, CommandSeparator } from "@/components/ui/command";
+import { CommandGroup } from "@/components/ui/command";
 import { SearchResultItem } from './SearchResultItem';
 import type { SearchResult } from '@/search/search-api';
 
@@ -31,7 +31,6 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
   title,
   results,
   onSelectResult,
-  showSeparator = false,
   maxResults,
   className = ""
 }) => {
@@ -46,9 +45,6 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
 
   return (
     <>
-      {/* 分隔符 */}
-      {showSeparator && <CommandSeparator />}
-      
       {/* 结果组 */}
       <CommandGroup 
         heading={`${title} (${results.length})`}

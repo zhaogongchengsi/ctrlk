@@ -3,7 +3,7 @@ import { SEARCH_CONFIG } from './search-config';
 
 export interface SearchResult {
   id: string;
-  type: "bookmark" | "tab" | "history";
+  type: "bookmark" | "tab" | "history" | "suggestion";
   title: string;
   url: string;
   favicon?: string;
@@ -11,6 +11,7 @@ export interface SearchResult {
   score?: number;
   lastVisitTime?: number;
   visitCount?: number;
+  suggestion?: string; // 用于存储搜索建议
   highlights?: {
     title?: HighlightMatch[];
     url?: HighlightMatch[];
@@ -180,17 +181,61 @@ export class SearchEngine {
     return Object.keys(highlights).length > 0 ? highlights : undefined;
   }
 
-  search(query: string, limit = 50): SearchResult[] {
+  async search(query: string, limit = 50): Promise<SearchResult[]> {
+    if (!query.trim()) {
+      return [];
+    }
+
+    const cleanQuery = query.trim();
+    
+    // 应用最小查询长度限制
+    if (cleanQuery.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) {
+      return [];
+    }
+
+    try {
+      // 并行执行本地搜索和 Google 搜索建议
+      const [localResults, googleSuggestions] = await Promise.all([
+        this.searchLocal(cleanQuery, limit),
+        this.getGoogleSuggestions(cleanQuery)
+      ]);
+
+      // 合并结果
+      const allResults = [...localResults];
+
+      // 添加 Google 搜索建议，给予较低的分数
+      googleSuggestions.forEach((suggestion: string, index: number) => {
+        if (suggestion !== cleanQuery) { // 不包含原始查询
+          allResults.push({
+            id: `suggestion-${index}`,
+            type: "suggestion",
+            title: suggestion,
+            url: `https://www.google.com/search?q=${encodeURIComponent(suggestion)}`,
+            suggestion: suggestion,
+            score: 10 + (googleSuggestions.length - index), // 基础分数较低
+            snippet: `搜索建议: ${suggestion}`,
+            favicon: "https://www.google.com/favicon.ico"
+          });
+        }
+      });
+
+      return allResults
+        .sort((a, b) => (b.score || 0) - (a.score || 0))
+        .slice(0, limit);
+    } catch (error) {
+      console.error('Search failed:', error);
+      // 如果出错，至少返回本地搜索结果
+      return this.searchLocal(cleanQuery, limit);
+    }
+  }
+
+  private searchLocal(query: string, limit: number): SearchResult[] {
     if (!this.isInitialized || !this.fuse) {
       console.warn('Search index not initialized');
       return [];
     }
 
-    if (!query.trim()) {
-      return [];
-    }
-
-    const cleanQuery = query.trim().toLowerCase();
+    const cleanQuery = query.toLowerCase();
     
     // 应用最小查询长度限制
     if (cleanQuery.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) {
@@ -274,6 +319,30 @@ export class SearchEngine {
     }
   }
 
+  private async getGoogleSuggestions(query: string): Promise<string[]> {
+    try {
+      const encodedQuery = encodeURIComponent(query);
+      const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodedQuery}`;
+      
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('Failed to fetch Google suggestions:', response.statusText);
+        return [];
+      }
+
+      const data = await response.json() as [string, string[]];
+      const suggestions = data[1] || [];
+      
+      // 过滤和限制建议数量
+      return suggestions
+        .filter((suggestion: string) => suggestion && suggestion.trim().toLowerCase() !== query.toLowerCase())
+        .slice(0, 5); // 最多返回5个建议
+    } catch (error) {
+      console.warn('Error fetching Google suggestions:', error);
+      return [];
+    }
+  }
+
   private async getBookmarks(): Promise<BookmarkData[]> {
     return new Promise((resolve) => {
       chrome.bookmarks.getTree((bookmarkTreeNodes) => {
@@ -339,9 +408,66 @@ export class SearchEngine {
           // 按访问时间排序，最新的在前
           .sort((a, b) => b.lastVisitTime - a.lastVisitTime);
         
-        resolve(historyData);
+        // 对历史记录进行域名去重
+        const deduplicatedHistory = this.deduplicateHistoryByDomain(
+          historyData, 
+          SEARCH_CONFIG.HISTORY.MAX_PER_DOMAIN
+        );
+        
+        resolve(deduplicatedHistory);
       });
     });
+  }
+
+  /**
+   * 根据域名对历史记录进行去重，每个域名最多保留指定数量的记录
+   */
+  private deduplicateHistoryByDomain(historyData: HistoryData[], maxPerDomain = SEARCH_CONFIG.HISTORY.MAX_PER_DOMAIN): HistoryData[] {
+    const domainCounts = new Map<string, number>();
+    const result: HistoryData[] = [];
+    
+    for (const item of historyData) {
+      const domain = this.extractMainDomain(item.url);
+      const currentCount = domainCounts.get(domain) || 0;
+      
+      if (currentCount < maxPerDomain) {
+        result.push(item);
+        domainCounts.set(domain, currentCount + 1);
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * 提取主域名（去除子域名）
+   */
+  private extractMainDomain(url: string): string {
+    try {
+      const urlObj = new URL(url);
+      const hostname = urlObj.hostname.toLowerCase();
+      
+      // 移除常见的子域名前缀
+      const parts = hostname.split('.');
+      if (parts.length >= 2) {
+        // 对于常见的顶级域名组合，保留主域名 + 顶级域名
+        const tld = parts[parts.length - 1];
+        const domain = parts[parts.length - 2];
+        
+        // 处理二级域名的情况（如 .co.uk, .com.cn 等）
+        const commonSecondLevelDomains = ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'];
+        if (parts.length >= 3 && commonSecondLevelDomains.includes(domain)) {
+          return `${parts[parts.length - 3]}.${domain}.${tld}`;
+        }
+        
+        return `${domain}.${tld}`;
+      }
+      
+      return hostname;
+    } catch {
+      // 如果URL解析失败，返回原始URL作为域名
+      return url;
+    }
   }
 
     private calculateScore(query: string, doc: IndexDocument, boost = 1): number {
@@ -455,14 +581,87 @@ export class SearchEngine {
   }
 
   private deduplicateResults(results: SearchResult[]): SearchResult[] {
-    const seen = new Set<string>();
-    return results.filter(result => {
-      if (seen.has(result.id)) {
-        return false;
+    // 如果禁用了域名去重，使用简单去重
+    if (!SEARCH_CONFIG.DOMAIN_DEDUPLICATION.ENABLED) {
+      const seen = new Set<string>();
+      return results.filter(result => {
+        if (seen.has(result.id)) {
+          return false;
+        }
+        seen.add(result.id);
+        return true;
+      });
+    }
+
+    // 先按类型分组
+    const byType = new Map<string, SearchResult[]>();
+    results.forEach(result => {
+      const type = result.type;
+      if (!byType.has(type)) {
+        byType.set(type, []);
       }
-      seen.add(result.id);
-      return true;
+      byType.get(type)!.push(result);
     });
+
+    const deduplicatedResults: SearchResult[] = [];
+
+    // 对每种类型分别处理
+    byType.forEach((typeResults, type) => {
+      if (type === 'history') {
+        // 历史记录按域名去重
+        deduplicatedResults.push(...this.deduplicateResultsByDomain(
+          typeResults, 
+          SEARCH_CONFIG.DOMAIN_DEDUPLICATION.HISTORY_MAX_PER_DOMAIN
+        ));
+      } else if (type === 'bookmark') {
+        // 书签按域名去重，但允许更多
+        deduplicatedResults.push(...this.deduplicateResultsByDomain(
+          typeResults, 
+          SEARCH_CONFIG.DOMAIN_DEDUPLICATION.BOOKMARK_MAX_PER_DOMAIN
+        ));
+      } else {
+        // 其他类型（标签页、建议）使用普通去重
+        const seen = new Set<string>();
+        typeResults.forEach(result => {
+          if (!seen.has(result.id)) {
+            seen.add(result.id);
+            deduplicatedResults.push(result);
+          }
+        });
+      }
+    });
+
+    return deduplicatedResults;
+  }
+
+  /**
+   * 根据域名对搜索结果进行去重
+   */
+  private deduplicateResultsByDomain(results: SearchResult[], maxPerDomain = 2): SearchResult[] {
+    const domainCounts = new Map<string, number>();
+    const seen = new Set<string>();
+    const deduplicatedResults: SearchResult[] = [];
+    
+    // 按分数排序，确保高分结果优先
+    const sortedResults = results.sort((a, b) => (b.score || 0) - (a.score || 0));
+    
+    for (const result of sortedResults) {
+      // 跳过重复的ID
+      if (seen.has(result.id)) {
+        continue;
+      }
+      
+      const domain = this.extractMainDomain(result.url);
+      const currentCount = domainCounts.get(domain) || 0;
+      
+      if (currentCount < maxPerDomain) {
+        deduplicatedResults.push(result);
+        domainCounts.set(domain, currentCount + 1);
+        seen.add(result.id);
+      }
+    }
+    
+    return deduplicatedResults;
   }
 
   public getStats() {

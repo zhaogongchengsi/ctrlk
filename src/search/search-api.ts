@@ -1,5 +1,8 @@
 import type { SearchResult } from './search-engine';
 import type { SearchRequest, SearchResponse, OpenResultRequest } from './search-manager';
+import { Subject, Observable } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
+import { of } from 'rxjs';
 
 export type { SearchResult };
 
@@ -87,6 +90,89 @@ export function createDebouncedSearch(delay = 300) {
 }
 
 /**
+ * 创建基于 RxJS 的搜索管理器
+ */
+export class RxSearchManager {
+  private searchSubject = new Subject<string>();
+  private currentQuery = '';
+  private searchSequence = 0;
+  private delay: number;
+
+  constructor(delay = 300) {
+    this.delay = delay;
+    this.setupSearchStream();
+  }
+
+  private setupSearchStream(): Observable<{ query: string; results: SearchResult[]; sequence: number }> {
+    return this.searchSubject.pipe(
+      debounceTime(this.delay),
+      distinctUntilChanged(),
+      switchMap(async (query) => {
+        const sequence = ++this.searchSequence;
+        this.currentQuery = query;
+        
+        if (!query.trim()) {
+          return { query, results: [], sequence };
+        }
+
+        try {
+          const results = await searchBookmarksTabsAndHistory(query);
+          
+          // 只返回最新查询的结果
+          if (this.currentQuery === query) {
+            return { query, results, sequence };
+          } else {
+            // 查询已过期，返回空结果
+            return { query, results: [], sequence };
+          }
+        } catch (error) {
+          console.error('Search failed:', error);
+          return { query, results: [], sequence };
+        }
+      }),
+      catchError((error) => {
+        console.error('Search stream error:', error);
+        return of({ query: '', results: [], sequence: 0 });
+      })
+    );
+  }
+
+  /**
+   * 搜索方法
+   */
+  search(query: string): void {
+    this.searchSubject.next(query);
+  }
+
+  /**
+   * 获取搜索结果流
+   */
+  getSearchStream(): Observable<{ query: string; results: SearchResult[]; sequence: number }> {
+    return this.setupSearchStream();
+  }
+
+  /**
+   * 订阅搜索结果
+   */
+  subscribe(
+    callback: (results: SearchResult[], query: string) => void,
+    errorCallback?: (error: unknown) => void
+  ) {
+    return this.getSearchStream().subscribe({
+      next: ({ query, results }) => callback(results, query),
+      error: errorCallback || ((error) => console.error('Search subscription error:', error))
+    });
+  }
+
+  /**
+   * 清理资源
+   */
+  destroy(): void {
+    this.searchSubject.complete();
+  }
+}
+
+/**
  * 格式化搜索结果用于显示
  */
 export function formatSearchResult(result: SearchResult) {
@@ -99,6 +185,8 @@ export function formatSearchResult(result: SearchResult) {
     icon = '📚';
   } else if (result.type === 'tab') {
     icon = '🔗';
+  } else if (result.type === 'suggestion') {
+    icon = '🔍';
   }
   
   return {
@@ -116,8 +204,9 @@ export function groupSearchResults(results: SearchResult[]) {
   const bookmarks = results.filter(r => r.type === 'bookmark');
   const tabs = results.filter(r => r.type === 'tab');
   const history = results.filter(r => r.type === 'history');
+  const suggestions = results.filter(r => r.type === 'suggestion');
   
-  return { bookmarks, tabs, history };
+  return { bookmarks, tabs, history, suggestions };
 }
 
 /**

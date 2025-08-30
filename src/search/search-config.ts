@@ -13,6 +13,14 @@ export const SEARCH_CONFIG = {
   HISTORY: {
     MAX_RESULTS: 1000,
     MAX_DAYS: 30,
+    MAX_PER_DOMAIN: 3, // 每个域名最多保留的历史记录数
+  },
+
+  // 域名去重配置
+  DOMAIN_DEDUPLICATION: {
+    HISTORY_MAX_PER_DOMAIN: 2,    // 历史记录搜索结果中每个域名最多显示数量
+    BOOKMARK_MAX_PER_DOMAIN: 3,   // 书签搜索结果中每个域名最多显示数量
+    ENABLED: true,                 // 是否启用域名去重
   },
   
   // Fuse.js 搜索配置
@@ -68,6 +76,7 @@ export const SEARCH_CONFIG = {
     bookmark: '⭐',
     tab: '🔗',
     history: '📚',
+    suggestion: '🔍',
     default: '📄',
   } as const,
   

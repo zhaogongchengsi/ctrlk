@@ -145,7 +145,7 @@ export class SearchManager {
     sendResponse: (response: SearchResponse) => void
   ): Promise<void> {
     try {
-      const results = this.searchEngine.search(request.query);
+      const results = await this.searchEngine.search(request.query);
       sendResponse({
         type: 'SEARCH_RESULTS',
         results
