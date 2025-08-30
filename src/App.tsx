@@ -1,19 +1,21 @@
 import { Command, CommandInput } from "@/components/ui/command";
 import CommandWrapper from "./components/CommandWrapper";
 import SearchResultsList from "./components/search/SearchResultsList";
+import { LoaderOne } from "@/components/ui/loader";
 import { useState, useCallback, useRef, useEffect } from "react";
-import { createDebouncedSearch, openSearchResult, groupSearchResults } from "./search/search-api";
+import { openSearchResult, groupSearchResults, RxSearchManager } from "./search/search-api";
 import type { SearchResult } from "./search/search-api";
 import { useInputFocus, useDialogLifecycle } from "./hooks/useDialogLifecycle";
 import { useTheme } from "./hooks/useTheme";
 import { cn } from "./lib/utils";
 
-const debouncedSearch = createDebouncedSearch(300);
-
 function App() {
   const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [currentQuery, setCurrentQuery] = useState('');
   const [forceTheme, setForceTheme] = useState<"dark" | "light" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchManagerRef = useRef<RxSearchManager | null>(null);
   const detectedTheme = useTheme();
   const theme = forceTheme || detectedTheme;
 
@@ -55,6 +57,32 @@ function App() {
     };
   }, []);
 
+  // 初始化搜索管理器
+  useEffect(() => {
+    const searchManager = new RxSearchManager(300);
+    searchManagerRef.current = searchManager;
+
+    // 订阅搜索结果
+    const subscription = searchManager.subscribe(
+      (searchResults, query) => {
+        setResults(searchResults);
+        setCurrentQuery(query);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Search error:', error);
+        setResults([]);
+        setLoading(false);
+      }
+    );
+
+    // 清理函数
+    return () => {
+      subscription.unsubscribe();
+      searchManager.destroy();
+    };
+  }, []);
+
   // 使用输入框聚焦 Hook
   useInputFocus(inputRef);
 
@@ -80,20 +108,19 @@ function App() {
     },
   });
 
-  const performSearch = useCallback(async (searchQuery: string) => {
+  const performSearch = useCallback((searchQuery: string) => {
+    if (!searchManagerRef.current) return;
+    
+    setLoading(true);
+    setCurrentQuery(searchQuery);
+    
     if (searchQuery.length < 2) {
       setResults([]);
+      setLoading(false);
       return;
     }
-    try {
-      const searchResults = await debouncedSearch(searchQuery);
-      setResults(searchResults);
-    } catch (error) {
-      console.error("Search failed:", error);
-      setResults([]);
-    } finally {
-      // setLoading(false);
-    }
+    
+    searchManagerRef.current.search(searchQuery);
   }, []);
 
   const handleResultSelect = async (result: SearchResult) => {
@@ -122,13 +149,24 @@ function App() {
       className={cn(wrapperClassName, "min-h-[400px]")}
     >
       <Command className="w-full h-full">
-        <CommandInput ref={inputRef} onValueChange={performSearch} placeholder="搜索书签、标签页和历史记录..." />
-        <SearchResultsList
-          results={groupedResults}
-          onSelectResult={handleResultSelect}
-          maxResultsPerGroup={10}
-          emptyMessage="没有找到匹配的结果"
+        <CommandInput 
+          ref={inputRef} 
+          onValueChange={performSearch} 
+          placeholder="搜索书签、标签页、历史记录和建议..." 
+          value={currentQuery}
         />
+        {loading ? (
+          <div className="flex h-40 items-center justify-center">
+            <LoaderOne />
+          </div>
+        ) : (
+          <SearchResultsList
+            results={groupedResults}
+            onSelectResult={handleResultSelect}
+            maxResultsPerGroup={10}
+            emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
+          />
+        )}
       </Command>
     </CommandWrapper>
   );
