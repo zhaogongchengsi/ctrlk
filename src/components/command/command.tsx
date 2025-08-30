@@ -60,21 +60,36 @@ export const CommandRoot = React.forwardRef<
   Omit<React.ComponentPropsWithoutRef<typeof Primitive.div>, "onSelect"> & CommandRootProps
 >(({ value = "", onValueChange, onSelect, children, className, ...props }, ref) => {
   const [internalValue, setInternalValue] = React.useState(value);
-  const [search, setSearch] = React.useState("");
+  const [search, setSearch] = React.useState(value);
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const itemsRef = React.useRef<Map<string, { value: string; disabled: boolean }>>(new Map());
+  const prevValueRef = React.useRef(value);
+  const isControlled = value !== undefined;
   
-  // External value control
+  // External value control - 只在受控模式且 prop 真的变化时更新
   React.useEffect(() => {
-    if (value !== undefined) {
+    if (isControlled && value !== prevValueRef.current) {
+      prevValueRef.current = value;
+      setSearch(value);
       setInternalValue(value);
     }
-  }, [value]);
+  }, [value, isControlled]);
 
-  // Search change notification
+  // 使用 useCallback 来稳定 setSearch 函数，避免子组件重复渲染
+  const stableSetSearch = React.useCallback((newSearch: string) => {
+    setSearch(newSearch);
+    if (!isControlled) {
+      // 非受控模式下通知父组件
+      onValueChange?.(newSearch);
+    }
+  }, [isControlled, onValueChange]);
+
+  // 受控模式下，当内部搜索值变化时通知父组件
   React.useEffect(() => {
-    onValueChange?.(search);
-  }, [search, onValueChange]);
+    if (isControlled && search !== value) {
+      onValueChange?.(search);
+    }
+  }, [search, value, isControlled, onValueChange]);
 
   // Update selected item's aria-selected attribute
   React.useEffect(() => {
@@ -194,12 +209,12 @@ export const CommandRoot = React.forwardRef<
     value: internalValue,
     setValue,
     search,
-    setSearch,
+    setSearch: stableSetSearch,
     registerItem,
     listRef,
     onSelect,
     onValueChange,
-  }), [internalValue, setValue, search, registerItem, onSelect, onValueChange]);
+  }), [internalValue, setValue, search, stableSetSearch, registerItem, onSelect, onValueChange]);
 
   return (
     <CommandContext.Provider value={contextValue}>
@@ -231,13 +246,51 @@ export const CommandInput = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof Primitive.input>
 >(({ className, ...props }, ref) => {
   const { search, setSearch } = useCommand();
+  const [isComposing, setIsComposing] = React.useState(false);
+  const [internalValue, setInternalValue] = React.useState(search);
+  const lastSearchRef = React.useRef(search);
+
+  // 同步外部搜索值到内部值
+  React.useEffect(() => {
+    // 只有在不是用户正在输入时才同步外部值
+    if (search !== lastSearchRef.current && !isComposing) {
+      setInternalValue(search);
+      lastSearchRef.current = search;
+    }
+  }, [search, isComposing]);
+
+  // 处理中文输入法组合事件
+  const handleCompositionStart = React.useCallback(() => {
+    setIsComposing(true);
+  }, []);
+
+  const handleCompositionEnd = React.useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
+    const value = e.currentTarget.value;
+    setIsComposing(false);
+    setInternalValue(value);
+    lastSearchRef.current = value;
+    setSearch(value);
+  }, [setSearch]);
+
+  const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInternalValue(value);
+    
+    // 只有在非组合状态下才更新搜索值
+    if (!isComposing) {
+      lastSearchRef.current = value;
+      setSearch(value);
+    }
+  }, [isComposing, setSearch]);
 
   return (
     <div data-slot="command-input-wrapper">
       <Primitive.input
         ref={ref}
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        value={internalValue}
+        onChange={handleChange}
+        onCompositionStart={handleCompositionStart}
+        onCompositionEnd={handleCompositionEnd}
         cmdk-input=""
         data-slot="command-input"
         className={cn("ctrlk-command-input", className)}

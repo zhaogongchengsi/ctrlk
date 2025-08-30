@@ -97,10 +97,11 @@ export class RxSearchManager {
   private currentQuery = '';
   private searchSequence = 0;
   private delay: number;
+  private searchStream$: Observable<{ query: string; results: SearchResult[]; sequence: number }>;
 
   constructor(delay = 300) {
     this.delay = delay;
-    this.setupSearchStream();
+    this.searchStream$ = this.setupSearchStream();
   }
 
   private setupSearchStream(): Observable<{ query: string; results: SearchResult[]; sequence: number }> {
@@ -118,21 +119,22 @@ export class RxSearchManager {
         try {
           const results = await searchBookmarksTabsAndHistory(query);
           
-          // 只返回最新查询的结果
-          if (this.currentQuery === query) {
+          // 确保只返回最新查询的结果，避免竞争条件
+          if (this.currentQuery === query && sequence === this.searchSequence) {
             return { query, results, sequence };
           } else {
             // 查询已过期，返回空结果
-            return { query, results: [], sequence };
+            return { query: this.currentQuery, results: [], sequence: this.searchSequence };
           }
         } catch (error) {
           console.error('Search failed:', error);
-          return { query, results: [], sequence };
+          // 错误情况下也要返回当前查询状态
+          return { query: this.currentQuery, results: [], sequence: this.searchSequence };
         }
       }),
       catchError((error) => {
         console.error('Search stream error:', error);
-        return of({ query: '', results: [], sequence: 0 });
+        return of({ query: this.currentQuery, results: [], sequence: this.searchSequence });
       })
     );
   }
@@ -141,14 +143,17 @@ export class RxSearchManager {
    * 搜索方法
    */
   search(query: string): void {
-    this.searchSubject.next(query);
+    // 过滤掉连续的相同查询
+    if (query !== this.currentQuery) {
+      this.searchSubject.next(query);
+    }
   }
 
   /**
    * 获取搜索结果流
    */
   getSearchStream(): Observable<{ query: string; results: SearchResult[]; sequence: number }> {
-    return this.setupSearchStream();
+    return this.searchStream$;
   }
 
   /**
@@ -158,10 +163,25 @@ export class RxSearchManager {
     callback: (results: SearchResult[], query: string) => void,
     errorCallback?: (error: unknown) => void
   ) {
-    return this.getSearchStream().subscribe({
+    return this.searchStream$.subscribe({
       next: ({ query, results }) => callback(results, query),
       error: errorCallback || ((error) => console.error('Search subscription error:', error))
     });
+  }
+
+  /**
+   * 立即清空结果
+   */
+  clearResults(): void {
+    this.currentQuery = '';
+    this.searchSubject.next('');
+  }
+
+  /**
+   * 获取当前查询
+   */
+  getCurrentQuery(): string {
+    return this.currentQuery;
   }
 
   /**

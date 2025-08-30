@@ -113,7 +113,7 @@ function App() {
   const performSearch = useCallback((searchQuery: string) => {
     if (!searchManagerRef.current) return;
 
-    setLoading(true);
+    // 更新当前查询状态（即使为空也要更新）
     setCurrentQuery(searchQuery);
 
     if (searchQuery.length < 2) {
@@ -122,6 +122,8 @@ function App() {
       return;
     }
 
+    // 只有在查询长度足够时才显示loading状态
+    setLoading(true);
     searchManagerRef.current.search(searchQuery);
   }, []);
 

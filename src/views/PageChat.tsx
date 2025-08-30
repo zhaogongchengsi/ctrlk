@@ -41,7 +41,7 @@ export default function PageChat() {
   const performSearch = useCallback((value: string) => {
     if (!searchManagerRef.current) return;
     
-    setLoading(true);
+    // 更新当前查询状态
     setCurrentQuery(value);
     
     if (!value.trim()) {
@@ -50,6 +50,8 @@ export default function PageChat() {
       return;
     }
     
+    // 只有在查询不为空时才显示loading状态
+    setLoading(true);
     searchManagerRef.current.search(value);
   }, []);
 
