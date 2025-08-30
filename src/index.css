@@ -357,15 +357,12 @@ shine animation {
   scroll-padding-block-end: 40px;
   transition: .1s ease;
   transition-property: height;
-  max-height: 400px;
-
   padding-right: 4px;
   /* 为滚动条预留空间，防止内容跳动 */
   padding-left: 15px;
   /* 自定义滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: var(--gray6) transparent;
-
   outline: none;
 }
 

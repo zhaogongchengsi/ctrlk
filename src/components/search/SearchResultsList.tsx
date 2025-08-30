@@ -1,6 +1,6 @@
 import { Command } from "@/components/command";
-import { SearchResultGroup } from './SearchResultGroup';
-import type { SearchResult } from '@/search/search-api';
+import { SearchResultGroup } from "./SearchResultGroup";
+import type { SearchResult } from "@/search/search-api";
 
 interface GroupedSearchResults {
   tabs: SearchResult[];
@@ -21,16 +21,15 @@ export default function SearchResultsList({
   results,
   onSelectResult,
   maxResultsPerGroup = 3,
-  emptyMessage = '暂无搜索结果',
-  className = '',
+  className = "",
 }: SearchResultsListProps) {
   const { tabs, bookmarks, history, suggestions } = results;
-  // const totalResults = tabs.length + bookmarks.length + history.length + suggestions.length;
+  const totalResults = tabs.length + bookmarks.length + history.length + suggestions.length;
 
   return (
     <Command.List className={className}>
-      <Command.Empty>{emptyMessage}</Command.Empty>
-      
+      {totalResults === 0 && <Command.Empty className="py-6 text-center text-sm">暂无搜索结果</Command.Empty>}
+
       {/* 标签页组 */}
       <SearchResultGroup
         title="打开的标签页"

@@ -59,7 +59,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
   return (
     <Command.Item
       key={result.id}
-      value={`${result.title} ${result.url}`}
+      value={result.id}
       data-url={result.url}
       data-type={result.type}
       onSelect={() => onSelect(result)}

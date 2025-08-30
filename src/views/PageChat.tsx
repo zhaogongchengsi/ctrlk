@@ -82,10 +82,10 @@ export default function PageChat() {
           </div>
         ) : (
           <SearchResultsList
+            className="max-h-[50vh]"
             results={groupedResults}
             onSelectResult={handleResultSelect}
             maxResultsPerGroup={10}
-            emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
           />
         )}
       </Command.Root>

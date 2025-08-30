@@ -1,7 +1,7 @@
-import React from 'react';
+import React from "react";
 import { Command } from "@/components/command";
-import { SearchResultItem } from './SearchResultItem';
-import type { SearchResult } from '@/search/search-api';
+import { SearchResultItem } from "./SearchResultItem";
+import type { SearchResult } from "@/search/search-api";
 
 interface SearchResultGroupProps {
   title: string;
@@ -17,7 +17,8 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
   results,
   onSelectResult,
   maxResults,
-  className = ""
+  className = "",
+  title,
 }) => {
   // 如果没有结果，不渲染组件
   if (results.length === 0) {
@@ -30,15 +31,9 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
   return (
     <>
       {/* 结果组 */}
-      <Command.Group
-        className={className}
-      >
+      <Command.Group heading={title} className={className}>
         {displayResults.map((result) => (
-          <SearchResultItem
-            key={result.id}
-            result={result}
-            onSelect={onSelectResult}
-          />
+          <SearchResultItem key={result.id} result={result} onSelect={onSelectResult} />
         ))}
       </Command.Group>
     </>
