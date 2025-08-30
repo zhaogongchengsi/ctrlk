@@ -1,5 +1,4 @@
 import { Command, CommandInput } from "@/components/ui/command";
-import CommandWrapper from "./components/CommandWrapper";
 import SearchResultsList from "./components/search/SearchResultsList";
 import { LoaderOne } from "@/components/ui/loader";
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -12,7 +11,7 @@ import { cn } from "./lib/utils";
 function App() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentQuery, setCurrentQuery] = useState('');
+  const [currentQuery, setCurrentQuery] = useState("");
   const [forceTheme, setForceTheme] = useState<"dark" | "light" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchManagerRef = useRef<RxSearchManager | null>(null);
@@ -26,6 +25,7 @@ function App() {
         const receivedTheme = event.data.theme as "dark" | "light";
         console.log("Received theme from parent:", receivedTheme);
 
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
         // 设置强制主题
         setForceTheme(receivedTheme);
 
@@ -35,6 +35,8 @@ function App() {
         } else {
           document.body.classList.remove("dark");
         }
+
+        console.log("Applied theme to body:", { mediaQuery , receivedTheme});
 
         // 通知父页面主题设置完成
         setTimeout(() => {
@@ -70,10 +72,10 @@ function App() {
         setLoading(false);
       },
       (error) => {
-        console.error('Search error:', error);
+        console.error("Search error:", error);
         setResults([]);
         setLoading(false);
-      }
+      },
     );
 
     // 清理函数
@@ -110,16 +112,16 @@ function App() {
 
   const performSearch = useCallback((searchQuery: string) => {
     if (!searchManagerRef.current) return;
-    
+
     setLoading(true);
     setCurrentQuery(searchQuery);
-    
+
     if (searchQuery.length < 2) {
       setResults([]);
       setLoading(false);
       return;
     }
-    
+
     searchManagerRef.current.search(searchQuery);
   }, []);
 
@@ -142,25 +144,22 @@ function App() {
       : "rounded-xl border border-gray-200/60 shadow-2xl bg-white/98 backdrop-blur-md w-full overflow-hidden";
 
   return (
-    <CommandWrapper
-      debounceMs={150}
-      maxHeight={600} // 设置最大高度为 600px
-      enableScrollCheck={true}
-      className={cn(wrapperClassName, "min-h-[400px]")}
-    >
-      <Command className="w-full h-full">
-        <CommandInput 
-          ref={inputRef} 
-          onValueChange={performSearch} 
-          placeholder="搜索书签、标签页、历史记录和建议..." 
+    <div className={cn("w-full md:w-200 mx-auto min-h-[400px]", wrapperClassName)}>
+      <Command className="w-full h-full min-h-[400px]">
+        <CommandInput
+          ref={inputRef}
+          onValueChange={performSearch}
+          placeholder="搜索书签、标签页、历史记录和建议..."
           value={currentQuery}
         />
+        <div className="ctrlk-raycast-loader" />
         {loading ? (
           <div className="flex h-40 items-center justify-center">
             <LoaderOne />
           </div>
         ) : (
           <SearchResultsList
+            className="max-h-[320px]"
             results={groupedResults}
             onSelectResult={handleResultSelect}
             maxResultsPerGroup={10}
@@ -168,7 +167,7 @@ function App() {
           />
         )}
       </Command>
-    </CommandWrapper>
+    </div>
   );
 }
 

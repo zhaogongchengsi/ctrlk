@@ -60,6 +60,8 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
     <CommandItem
       key={result.id}
       value={`${result.title} ${result.url}`}
+      data-url={result.url}
+      data-type={result.type}
       onSelect={() => onSelect(result)}
       className={`flex items-center gap-[8px] cursor-pointe ${className} first:mt-[8px] last:mb-1 min-h-[52px] group`}
     >

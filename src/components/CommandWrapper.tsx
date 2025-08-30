@@ -311,8 +311,6 @@ const CommandWrapper: React.FC<CommandWrapperProps> = ({
       style={{
         transition: 'all 0.2s ease-out', // 平滑的尺寸变化动画
         overflow: 'hidden', // 防止出现滚动条
-        height: 'auto', // 自动高度
-        minHeight: 'fit-content', // 最小高度适应内容
         maxHeight: maxHeight ? `${maxHeight}px` : 'none', // 设置最大高度
         boxSizing: 'border-box' // 确保 padding 和 border 包含在尺寸内
       }}
