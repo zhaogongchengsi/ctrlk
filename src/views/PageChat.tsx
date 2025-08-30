@@ -9,7 +9,6 @@ import { useCallback, useState, useEffect, useRef } from "react";
 export default function PageChat() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
-  const [currentQuery, setCurrentQuery] = useState('');
   const searchManagerRef = useRef<RxSearchManager | null>(null);
 
   // 初始化搜索管理器
@@ -19,9 +18,8 @@ export default function PageChat() {
 
     // 订阅搜索结果
     const subscription = searchManager.subscribe(
-      (searchResults, query) => {
+      (searchResults) => {
         setResults(searchResults);
-        setCurrentQuery(query);
         setLoading(false);
       },
       (error) => {
@@ -40,9 +38,6 @@ export default function PageChat() {
 
   const performSearch = useCallback((value: string) => {
     if (!searchManagerRef.current) return;
-    
-    // 更新当前查询状态
-    setCurrentQuery(value);
     
     if (!value.trim()) {
       setResults([]);
@@ -71,7 +66,6 @@ export default function PageChat() {
     <div className="w-full md:w-200 mx-auto">
       <Command.Root 
         className="w-full"
-        value={currentQuery}
         onValueChange={performSearch}
       >
         <Command.Input

@@ -149,7 +149,6 @@ function App() {
     <div className={cn("w-full md:w-200 mx-auto min-h-[400px]", wrapperClassName)}>
       <Command.Root 
         className="w-full h-full min-h-[400px]"
-        value={currentQuery}
         onValueChange={performSearch}
       >
         <Command.Input
