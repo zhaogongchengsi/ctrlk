@@ -1,5 +1,5 @@
 import SearchResultsList from "@/components/search/SearchResultsList";
-import { Command, CommandInput } from "@/components/ui/command";
+import { Command } from "@/components/command";
 import { LoaderOne } from "@/components/ui/loader";
 import { groupSearchResults, openSearchResult, RxSearchManager } from "@/search/search-api";
 import type { SearchResult } from "@/search/search-engine";
@@ -67,11 +67,13 @@ export default function PageChat() {
 
   return (
     <div className="w-full md:w-200 mx-auto">
-      <Command className="w-full">
-        <CommandInput
-          onValueChange={performSearch}
+      <Command.Root 
+        className="w-full"
+        value={currentQuery}
+        onValueChange={performSearch}
+      >
+        <Command.Input
           placeholder="搜索书签、标签页、历史记录和建议..."
-          value={currentQuery}
         />
         <div className="ctrlk-raycast-loader" />
         {loading ? (
@@ -86,7 +88,7 @@ export default function PageChat() {
             emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
           />
         )}
-      </Command>
+      </Command.Root>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommandSeparator } from "@/components/ui/command";
+import { Command } from "@/components/command";
 
 interface SearchSeparatorProps {
   show: boolean;
@@ -23,7 +23,7 @@ export const SearchSeparator: React.FC<SearchSeparatorProps> = ({
   };
 
   return (
-    <CommandSeparator 
+    <Command.Separator 
       className={`${variantClasses[variant]} ${className}`}
     />
   );

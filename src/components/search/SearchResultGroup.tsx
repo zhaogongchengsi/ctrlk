@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommandGroup } from "@/components/ui/command";
+import { Command } from "@/components/command";
 import { SearchResultItem } from './SearchResultItem';
 import type { SearchResult } from '@/search/search-api';
 
@@ -14,7 +14,6 @@ interface SearchResultGroupProps {
 }
 
 export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
-  title,
   results,
   onSelectResult,
   maxResults,
@@ -31,8 +30,7 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
   return (
     <>
       {/* 结果组 */}
-      <CommandGroup 
-        heading={`${title} (${results.length})`}
+      <Command.Group
         className={className}
       >
         {displayResults.map((result) => (
@@ -42,7 +40,7 @@ export const SearchResultGroup: React.FC<SearchResultGroupProps> = ({
             onSelect={onSelectResult}
           />
         ))}
-      </CommandGroup>
+      </Command.Group>
     </>
   );
 };

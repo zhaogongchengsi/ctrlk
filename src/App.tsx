@@ -1,4 +1,4 @@
-import { Command, CommandInput } from "@/components/ui/command";
+import { Command } from "@/components/command";
 import SearchResultsList from "./components/search/SearchResultsList";
 import { LoaderOne } from "@/components/ui/loader";
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -145,12 +145,14 @@ function App() {
 
   return (
     <div className={cn("w-full md:w-200 mx-auto min-h-[400px]", wrapperClassName)}>
-      <Command className="w-full h-full min-h-[400px]">
-        <CommandInput
+      <Command.Root 
+        className="w-full h-full min-h-[400px]"
+        value={currentQuery}
+        onValueChange={performSearch}
+      >
+        <Command.Input
           ref={inputRef}
-          onValueChange={performSearch}
           placeholder="搜索书签、标签页、历史记录和建议..."
-          value={currentQuery}
         />
         <div className="ctrlk-raycast-loader" />
         {loading ? (
@@ -166,7 +168,7 @@ function App() {
             emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
           />
         )}
-      </Command>
+      </Command.Root>
     </div>
   );
 }

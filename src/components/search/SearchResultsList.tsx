@@ -1,4 +1,4 @@
-import { CommandList, CommandEmpty } from "@/components/ui/command";
+import { Command } from "@/components/command";
 import { SearchResultGroup } from './SearchResultGroup';
 import type { SearchResult } from '@/search/search-api';
 
@@ -28,8 +28,8 @@ export default function SearchResultsList({
   // const totalResults = tabs.length + bookmarks.length + history.length + suggestions.length;
 
   return (
-    <CommandList className={className}>
-      <CommandEmpty>{emptyMessage}</CommandEmpty>
+    <Command.List className={className}>
+      <Command.Empty>{emptyMessage}</Command.Empty>
       
       {/* 标签页组 */}
       <SearchResultGroup
@@ -70,6 +70,6 @@ export default function SearchResultsList({
         maxResults={maxResultsPerGroup}
         showSeparator={false}
       />
-    </CommandList>
+    </Command.List>
   );
 }

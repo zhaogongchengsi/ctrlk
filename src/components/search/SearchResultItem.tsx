@@ -1,5 +1,5 @@
 import React from 'react';
-import { CommandItem } from "@/components/ui/command";
+import { Command } from "@/components/command";
 import { SEARCH_CONFIG } from '@/search/search-config';
 import { PreciseHighlightText } from '../PreciseHighlightText';
 import type { SearchResult } from '@/search/search-api';
@@ -57,7 +57,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
   const domain = extractDomain(result.url);
 
   return (
-    <CommandItem
+    <Command.Item
       key={result.id}
       value={`${result.title} ${result.url}`}
       data-url={result.url}
@@ -123,7 +123,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
       {result.score && process.env.NODE_ENV === "development" && (
         <div className="text-xs text-gray-400 dark:text-gray-500 font-mono">{result.score.toFixed(0)}</div>
       )}
-    </CommandItem>
+    </Command.Item>
   );
 };
 
