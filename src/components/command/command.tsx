@@ -14,6 +14,7 @@ interface CommandContextValue {
   // Search state
   search: string;
   setSearch: (search: string) => void;
+  clearAll: () => void;
   
   // Items management
   registerItem: (id: string, value: string, _keywords?: string[], disabled?: boolean) => () => void;
@@ -58,16 +59,27 @@ export interface CommandRootProps {
 export const CommandRoot = React.forwardRef<
   React.ElementRef<typeof Primitive.div>,
   Omit<React.ComponentPropsWithoutRef<typeof Primitive.div>, "onSelect"> & CommandRootProps
->(({ value, onValueChange, onSelect, children, className, ...props }, ref) => {
+>(({ onValueChange, onSelect, children, className, ...props }, ref) => {
   const [internalValue, setInternalValue] = React.useState("");
   const [search, setSearch] = React.useState("");
   const listRef = React.useRef<HTMLDivElement | null>(null);
   const itemsRef = React.useRef<Map<string, { value: string; disabled: boolean }>>(new Map());
   
-  // 简单的搜索值通知，不做双向绑定
+  // 简化搜索值通知逻辑，避免不必要的调用
+  const searchNotified = React.useRef("");
   React.useEffect(() => {
-    onValueChange?.(search);
+    if (search !== searchNotified.current) {
+      searchNotified.current = search;
+      onValueChange?.(search);
+    }
   }, [search, onValueChange]);
+
+  // 清空所有状态的方法
+  const clearAll = React.useCallback(() => {
+    setInternalValue("");
+    setSearch("");
+    searchNotified.current = "";
+  }, []);
 
   // Update selected item's aria-selected attribute
   React.useEffect(() => {
@@ -94,11 +106,7 @@ export const CommandRoot = React.forwardRef<
 
   const setValue = React.useCallback((newValue: string) => {
     setInternalValue(newValue);
-    if (value === undefined) {
-      // Uncontrolled mode, update internal state
-      onValueChange?.(newValue);
-    }
-  }, [value, onValueChange]);
+  }, []);
 
   const registerItem = React.useCallback((
     id: string, 
@@ -146,8 +154,16 @@ export const CommandRoot = React.forwardRef<
     }
   }, [getValidItems, internalValue, setValue]);
 
-  // Keyboard navigation
+  // Keyboard navigation - 参考 cmdk 的实现
   const handleKeyDown = React.useCallback((event: React.KeyboardEvent) => {
+    // IME 组合输入检测，参考 cmdk 实现
+    const isComposing = event.nativeEvent.isComposing || event.keyCode === 229;
+    
+    // 如果事件已被阻止或正在 IME 组合输入中，不处理键盘导航
+    if (event.defaultPrevented || isComposing) {
+      return;
+    }
+    
     switch (event.key) {
       case "ArrowDown": {
         event.preventDefault();
@@ -168,11 +184,11 @@ export const CommandRoot = React.forwardRef<
       }
       case "Escape": {
         event.preventDefault();
-        setValue("");
+        clearAll();
         break;
       }
     }
-  }, [updateSelectedByItem, internalValue, onSelect, setValue]);
+  }, [updateSelectedByItem, internalValue, onSelect, clearAll]);
 
   // Auto-select first item when search changes and no current selection
   React.useEffect(() => {
@@ -188,11 +204,12 @@ export const CommandRoot = React.forwardRef<
     setValue,
     search,
     setSearch,
+    clearAll,
     registerItem,
     listRef,
     onSelect,
     onValueChange,
-  }), [internalValue, setValue, search, setSearch, registerItem, onSelect, onValueChange]);
+  }), [internalValue, setValue, search, setSearch, clearAll, registerItem, onSelect, onValueChange]);
 
   return (
     <CommandContext.Provider value={contextValue}>
@@ -219,43 +236,43 @@ CommandRoot.displayName = "CommandRoot";
 // Command Input Component
 // ===========================================
 
+export interface CommandInputProps {
+  value?: string;
+  onValueChange?: (search: string) => void;
+}
+
 export const CommandInput = React.forwardRef<
   React.ElementRef<typeof Primitive.input>,
-  React.ComponentPropsWithoutRef<typeof Primitive.input>
->(({ className, ...props }, ref) => {
-  const { setSearch } = useCommand();
-  const [isComposing, setIsComposing] = React.useState(false);
-  const [value, setValue] = React.useState("");
+  React.ComponentPropsWithoutRef<typeof Primitive.input> & CommandInputProps
+>(({ className, value: propValue, onValueChange, ...props }, ref) => {
+  const { search, setSearch } = useCommand();
+  const isControlled = propValue != null;
 
-  // 处理中文输入法组合事件
-  const handleCompositionStart = React.useCallback(() => {
-    setIsComposing(true);
-  }, []);
-
-  const handleCompositionEnd = React.useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
-    setIsComposing(false);
-    // 组合结束时触发搜索
-    setSearch(e.currentTarget.value);
-  }, [setSearch]);
+  // 当受控 value 变化时更新内部搜索状态
+  React.useEffect(() => {
+    if (propValue != null) {
+      setSearch(propValue);
+    }
+  }, [propValue, setSearch]);
 
   const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
-    setValue(newValue);
     
-    // 只有在非组合状态下才触发搜索
-    if (!isComposing) {
+    if (isControlled) {
+      // 受控模式：通知父组件值变化
+      onValueChange?.(newValue);
+    } else {
+      // 非受控模式：直接更新内部状态
       setSearch(newValue);
     }
-  }, [isComposing, setSearch]);
+  }, [isControlled, onValueChange, setSearch]);
 
   return (
     <div data-slot="command-input-wrapper">
       <Primitive.input
         ref={ref}
-        value={value}
+        value={isControlled ? propValue : search}
         onChange={handleChange}
-        onCompositionStart={handleCompositionStart}
-        onCompositionEnd={handleCompositionEnd}
         cmdk-input=""
         data-slot="command-input"
         className={cn("ctrlk-command-input", className)}
