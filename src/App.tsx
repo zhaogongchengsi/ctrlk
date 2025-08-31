@@ -22,21 +22,21 @@ function App() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === "SET_THEME") {
-        const receivedTheme = event.data.theme as "dark" | "light";
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+        const receivedTheme = mediaQuery.matches ? "dark" : ("light" as "dark" | "light");
         console.log("Received theme from parent:", receivedTheme);
 
-        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
         // 设置强制主题
         setForceTheme(receivedTheme);
 
         // 立即应用主题到body
-        if (receivedTheme === "dark") {
+        if (mediaQuery.matches) {
           document.body.classList.add("dark");
         } else {
           document.body.classList.remove("dark");
         }
 
-        console.log("Applied theme to body:", { mediaQuery , receivedTheme});
+        console.log("Applied theme to body:", { mediaQuery, receivedTheme });
 
         // 通知父页面主题设置完成
         setTimeout(() => {
@@ -147,14 +147,8 @@ function App() {
 
   return (
     <div className={cn("w-full md:w-200 mx-auto min-h-[400px]", wrapperClassName)}>
-      <Command.Root 
-        className="w-full h-full min-h-[400px]"
-        onValueChange={performSearch}
-      >
-        <Command.Input
-          ref={inputRef}
-          placeholder="搜索书签、标签页、历史记录和建议..."
-        />
+      <Command.Root className="w-full h-full min-h-[400px]" onValueChange={performSearch}>
+        <Command.Input ref={inputRef} placeholder="搜索书签、标签页、历史记录和建议..." />
         <div className="ctrlk-raycast-loader" />
         {loading ? (
           <div className="flex h-40 items-center justify-center">
