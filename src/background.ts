@@ -11,23 +11,17 @@ searchManager.initialize().catch(error => {
 // 监听快捷键命令
 chrome.commands.onCommand.addListener(async (command) => {
 	if (command === "open-panel") {
-		console.log('Handling CtrlK panel toggle...');
 		try {
 			// 获取当前活动标签页
 			const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-			
 			if (!tab.id) {
 				console.error('No active tab found');
 				return;
 			}
-
 			const currentTabId = tab.id;
 			const dialogId = `main-dialog-${currentTabId}`;
 			const currentState = dialogStates.get(dialogId);
 			const isCurrentTabOpen = currentState?.isOpen || false;
-
-			console.log('Current dialog state:', { dialogId, isCurrentTabOpen, allStates: Array.from(dialogStates.entries()) });
-
 			// 关闭所有其他标签页的弹窗
 			for (const [existingDialogId, state] of dialogStates.entries()) {
 				if (existingDialogId !== dialogId && state.isOpen) {
