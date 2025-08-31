@@ -1,4 +1,6 @@
 import { SearchEngine, type SearchResult } from './search-engine';
+import { Subject, from, Subscription, of } from 'rxjs';
+import { mergeMap, catchError, retry, timeout } from 'rxjs/operators';
 
 export interface SearchRequest {
   type: 'SEARCH_BOOKMARKS_TABS';
@@ -24,11 +26,14 @@ export interface StatsRequest {
 export class SearchManager {
   private searchEngine: SearchEngine;
   private isInitializing = false;
+  private openResultSubject = new Subject<OpenResultRequest>();
+  private openResultSubscription: Subscription | null = null;
 
   constructor() {
     this.searchEngine = new SearchEngine();
     this.setupMessageListeners();
     this.setupEventListeners();
+    this.setupOpenResultStream();
   }
 
   async initialize(): Promise<void> {
@@ -48,6 +53,31 @@ export class SearchManager {
     } finally {
       this.isInitializing = false;
     }
+  }
+
+  private setupOpenResultStream(): void {
+    this.openResultSubscription = this.openResultSubject.pipe(
+      mergeMap((request: OpenResultRequest) =>
+        from(this.processOpenResult(request)).pipe(
+          timeout(10000), // 10秒超时
+          retry(2), // 失败重试2次
+          catchError((error) => {
+            console.error('Failed to open search result:', error);
+            return of({
+              success: false,
+              error: error instanceof Error ? error.message : 'Failed to open result'
+            });
+          })
+        )
+      )
+    ).subscribe({
+      next: (result) => {
+        console.log('Open result completed:', result);
+      },
+      error: (error) => {
+        console.error('Open result stream error:', error);
+      }
+    });
   }
 
   private setupMessageListeners(): void {
@@ -164,8 +194,41 @@ export class SearchManager {
     request: OpenResultRequest,
     sendResponse: (response: { success: boolean; error?: string }) => void
   ): Promise<void> {
+    // 使用 RxJS 流处理
+    this.openResultSubject.next(request);
+    
+    // 同时为兼容性提供直接响应
+    try {
+      const result = await this.processOpenResult(request);
+      sendResponse(result);
+    } catch (error) {
+      console.error('Failed to open search result:', error);
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to open result'
+      });
+    }
+  }
+
+  private async processOpenResult(
+    request: OpenResultRequest
+  ): Promise<{ success: boolean; error?: string }> {
     try {
       const result = request.result;
+      
+      if (result.type === 'suggestion') {
+        // 处理搜索联想：打开 Google 搜索
+        const searchQuery = result.suggestion || result.title;
+        const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
+        
+        await chrome.tabs.create({
+          url: googleSearchUrl,
+          active: true
+        });
+        
+        console.log('Opened Google search for suggestion:', searchQuery);
+        return { success: true };
+      }
       
       if (result.type === 'bookmark') {
         // 打开书签在新标签页
@@ -201,13 +264,10 @@ export class SearchManager {
         });
       }
 
-      sendResponse({ success: true });
+      return { success: true };
     } catch (error) {
-      console.error('Failed to open search result:', error);
-      sendResponse({
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to open result'
-      });
+      console.error('Failed to process open result:', error);
+      throw error;
     }
   }
 
@@ -227,6 +287,17 @@ export class SearchManager {
 
   public getStats() {
     return this.searchEngine.getStats();
+  }
+
+  public destroy(): void {
+    // 清理 RxJS 订阅
+    if (this.openResultSubscription) {
+      this.openResultSubscription.unsubscribe();
+      this.openResultSubscription = null;
+    }
+    
+    // 完成 Subject
+    this.openResultSubject.complete();
   }
 }
 

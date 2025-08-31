@@ -69,16 +69,6 @@ export default function SearchResultsList({
         maxResults={maxResultsPerGroup}
         showSeparator={false}
       />
-
-      {/* 搜索建议组 - 优先显示 */}
-      <SearchResultGroup
-        title="搜索建议"
-        icon="�"
-        results={suggestions}
-        onSelectResult={onSelectResult}
-        maxResults={Math.min(maxResultsPerGroup, 5)} // 限制搜索建议数量
-        showSeparator={false}
-      />
     </Command.List>
   );
 }

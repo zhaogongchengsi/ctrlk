@@ -9,7 +9,7 @@ export default ['./src/content-script.ts', './src/runtime-api.ts', './src/backgr
 		outputOptions: {
 			entryFileNames: '[name].js',
 		},
-		noExternal: Object.keys(pkg.dependencies || {}),
+		noExternal: ["rxjs/operators", ...Object.keys(pkg.dependencies || {})],
 		outDir: 'extension/dist',
 	})
 })

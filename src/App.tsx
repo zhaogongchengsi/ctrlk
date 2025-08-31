@@ -130,6 +130,35 @@ function App() {
     }
   };
 
+  // 处理直接搜索（用于联想等情况）
+  const handleDirectSearch = useCallback(async (query: string) => {
+    try {
+      const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+      
+      // 在这里我们需要通过 chrome API 打开新标签页
+      // 由于这是在 content script 中，我们需要发送消息给 background script
+      const openRequest = {
+        type: 'OPEN_SEARCH_RESULT',
+        result: {
+          id: `direct-search-${Date.now()}`,
+          type: 'suggestion' as const,
+          title: query,
+          url: googleSearchUrl,
+          suggestion: query
+        }
+      };
+      
+      const response = await chrome.runtime.sendMessage(openRequest);
+      if (response?.success) {
+        console.log("Opened direct search for:", query);
+      } else {
+        console.error("Failed to open direct search:", response?.error);
+      }
+    } catch (error) {
+      console.error("Failed to perform direct search:", error);
+    }
+  }, []);
+
   // 处理 Command 组件的选择事件（回车键触发）
   const handleCommandSelect = useCallback(async (value: string) => {
     // 根据 value 查找对应的搜索结果
@@ -137,10 +166,15 @@ function App() {
     if (selectedResult) {
       await handleResultSelect(selectedResult);
     } else {
-      // 如果没有找到结果，可能是直接搜索
-      console.log("Direct search for:", value);
+      // 如果没有找到结果，检查是否是联想搜索
+      if (currentQuery.trim()) {
+        // 直接在 Google 中搜索当前查询
+        await handleDirectSearch(currentQuery.trim());
+      } else {
+        console.log("No query to search for");
+      }
     }
-  }, [results]);
+  }, [results, currentQuery, handleDirectSearch]);
 
   // 分组搜索结果
   const groupedResults = groupSearchResults(results);
