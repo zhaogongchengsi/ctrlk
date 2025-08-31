@@ -33,8 +33,6 @@ function App() {
   // 统一的选择处理函数，根据类型分别处理
   const handleUnifiedSelect = useCallback(
     async (value: string, type?: string) => {
-      console.log("handleUnifiedSelect called with:", { value, type });
-
       if (type === "recommendation") {
         console.log("Handling recommendation selection:", value);
         await handleRecommendationSelect(value);
