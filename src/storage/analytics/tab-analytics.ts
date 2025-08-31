@@ -1,6 +1,6 @@
-import { RxStorage } from '../rx-storage';
+import { type IStorage } from '../storage-factory';
 import { storageManager } from '../storage-manager';
-import { Subject, Observable, timer } from 'rxjs';
+import { Subject, Observable, timer, firstValueFrom } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
 /**
@@ -66,8 +66,8 @@ export interface ActiveTab {
  * 标签页分析器 - 跟踪网页访问和停留时长
  */
 export class TabAnalytics {
-  private visitsStorage: RxStorage<WebsiteVisit[]>;
-  private statsStorage: RxStorage<Record<string, WebsiteStats>>;
+  private visitsStorage: IStorage<WebsiteVisit[]>;
+  private statsStorage: IStorage<Record<string, WebsiteStats>>;
   private activeTabsMap = new Map<number, ActiveTab>();
   private updateSubject = new Subject<WebsiteStats>();
   private destroyed = false;
@@ -337,8 +337,8 @@ export class TabAnalytics {
    */
   private async saveVisit(visit: WebsiteVisit): Promise<void> {
     try {
-      const visits = await this.visitsStorage.get().toPromise() || [];
-      visits.unshift(visit); // 最新的在前面
+      const visits = await firstValueFrom(this.visitsStorage.get()) || [];
+      (visits as WebsiteVisit[]).unshift(visit); // 最新的在前面
 
       // 限制存储的访问记录数量
       if (visits.length > this.MAX_VISITS_STORED) {
@@ -356,8 +356,8 @@ export class TabAnalytics {
    */
   private async updateWebsiteStats(visit: WebsiteVisit): Promise<void> {
     try {
-      const allStats = await this.statsStorage.get().toPromise() || {};
-      const existingStats = allStats[visit.domain];
+      const allStats = await firstValueFrom(this.statsStorage.get()) || {};
+      const existingStats = (allStats as Record<string, WebsiteStats>)[visit.domain];
 
       const now = Date.now();
       const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
@@ -424,8 +424,8 @@ export class TabAnalytics {
    */
   private async countRecentVisits(domain: string, sinceTimestamp: number): Promise<number> {
     try {
-      const visits = await this.visitsStorage.get().toPromise() || [];
-      return visits.filter(visit => 
+      const visits = await firstValueFrom(this.visitsStorage.get()) || [];
+      return (visits as WebsiteVisit[]).filter((visit: WebsiteVisit) => 
         visit.domain === domain && visit.timestamp >= sinceTimestamp
       ).length;
     } catch (error) {
@@ -494,8 +494,8 @@ export class TabAnalytics {
    * 获取特定网站的统计信息
    */
   async getStatsForDomain(domain: string): Promise<WebsiteStats | null> {
-    const allStats = await this.statsStorage.get().toPromise() || {};
-    return allStats[domain] || null;
+    const allStats = await firstValueFrom(this.statsStorage.get()) || {};
+    return (allStats as Record<string, WebsiteStats>)[domain] || null;
   }
 
   /**
@@ -504,7 +504,7 @@ export class TabAnalytics {
   getVisitHistory(limit?: number): Observable<WebsiteVisit[]> {
     return this.visitsStorage.watch().pipe(
       map(visits => {
-        const validVisits = visits || [];
+        const validVisits = (visits as WebsiteVisit[]) || [];
         return limit ? validVisits.slice(0, limit) : validVisits;
       })
     );
@@ -514,8 +514,8 @@ export class TabAnalytics {
    * 获取热门网站
    */
   async getPopularWebsites(limit = 10): Promise<WebsiteStats[]> {
-    const allStats = await this.statsStorage.get().toPromise() || {};
-    return Object.values(allStats)
+    const allStats = await firstValueFrom(this.statsStorage.get()) || {};
+    return (Object.values(allStats) as WebsiteStats[])
       .sort((a, b) => b.frequencyScore - a.frequencyScore)
       .slice(0, limit);
   }
@@ -524,8 +524,8 @@ export class TabAnalytics {
    * 获取最近访问的网站
    */
   async getRecentWebsites(limit = 10): Promise<WebsiteStats[]> {
-    const allStats = await this.statsStorage.get().toPromise() || {};
-    return Object.values(allStats)
+    const allStats = await firstValueFrom(this.statsStorage.get()) || {};
+    return (Object.values(allStats) as WebsiteStats[])
       .sort((a, b) => b.lastVisit - a.lastVisit)
       .slice(0, limit);
   }
@@ -552,14 +552,15 @@ export class TabAnalytics {
    */
   async clearDomainData(domain: string): Promise<void> {
     // 清除访问记录
-    const visits = await this.visitsStorage.get().toPromise() || [];
-    const filteredVisits = visits.filter(visit => visit.domain !== domain);
-    await this.visitsStorage.set(filteredVisits);
+    const visits = await firstValueFrom(this.visitsStorage.get()) || [];
+    const filteredVisits = (visits as WebsiteVisit[]).filter((visit: WebsiteVisit) => visit.domain !== domain);
+    this.visitsStorage.set(filteredVisits);
 
     // 清除统计信息
-    const allStats = await this.statsStorage.get().toPromise() || {};
-    delete allStats[domain];
-    await this.statsStorage.set(allStats);
+    const allStats = await firstValueFrom(this.statsStorage.get()) || {};
+    const statsRecord = allStats as Record<string, WebsiteStats>;
+    delete statsRecord[domain];
+    this.statsStorage.set(statsRecord);
 
     console.log(`[TabAnalytics] Cleared data for domain: ${domain}`);
   }

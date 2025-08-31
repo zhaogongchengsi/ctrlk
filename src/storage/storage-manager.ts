@@ -1,12 +1,23 @@
-import { RxStorage } from './rx-storage';
 import type { StorageConfig } from './rx-storage';
+import { StorageFactory, type IStorage } from './storage-factory';
 import { Observable, combineLatest, map } from 'rxjs';
+
+/**
+ * 缓存统计信息类型
+ */
+type CacheStats = {
+  isCached: boolean;
+  isValid: boolean;
+  timestamp?: number;
+  version?: number;
+  cacheSize: number;
+} | null;
 
 /**
  * 存储实例注册表
  */
 interface StorageRegistry {
-  [key: string]: RxStorage<unknown>;
+  [key: string]: IStorage<unknown>;
 }
 
 /**
@@ -48,10 +59,10 @@ export class StorageManager {
     key: string, 
     defaultValue: T | null = null, 
     config?: StorageConfig
-  ): RxStorage<T> {
+  ): IStorage<T> {
     if (this.storages[key]) {
       this.log(`Returning existing storage for key: ${key}`);
-      return this.storages[key] as RxStorage<T>;
+      return this.storages[key] as IStorage<T>;
     }
 
     const mergedConfig = {
@@ -60,8 +71,8 @@ export class StorageManager {
     };
 
     this.log(`Creating new storage for key: ${key}`, mergedConfig);
-    const storage = new RxStorage<T>(key, defaultValue, mergedConfig);
-    this.storages[key] = storage as RxStorage<unknown>;
+    const storage = StorageFactory.createStorage<T>(key, defaultValue, mergedConfig);
+    this.storages[key] = storage as IStorage<unknown>;
 
     return storage;
   }
@@ -154,11 +165,11 @@ export class StorageManager {
   /**
    * 获取所有存储的缓存统计信息
    */
-  getAllCacheStats(): Record<string, ReturnType<RxStorage<unknown>['getCacheStats']>> {
-    const stats: Record<string, ReturnType<RxStorage<unknown>['getCacheStats']>> = {};
+  getAllCacheStats(): Record<string, CacheStats> {
+    const stats: Record<string, CacheStats> = {};
     
     Object.entries(this.storages).forEach(([key, storage]) => {
-      stats[key] = storage.getCacheStats();
+      stats[key] = storage.getCacheStats ? storage.getCacheStats() : null;
     });
 
     return stats;

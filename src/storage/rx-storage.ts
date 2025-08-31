@@ -68,7 +68,16 @@ export class RxStorage<T = unknown> {
     };
 
     // 选择存储区域
-    this.storageArea = chrome.storage[this.config.area];
+    if (typeof chrome === 'undefined' || !chrome.storage) {
+      throw new Error('Chrome storage API is not available. This class can only be used in Chrome extension context.');
+    }
+    
+    const storageArea = chrome.storage[this.config.area];
+    if (!storageArea) {
+      throw new Error(`Chrome storage area '${this.config.area}' is not available.`);
+    }
+    
+    this.storageArea = storageArea;
 
     // 初始化 subjects
     this.dataSubject = new BehaviorSubject<T | null>(defaultValue);
@@ -164,6 +173,11 @@ export class RxStorage<T = unknown> {
    * 监听存储变化
    */
   private setupStorageListener(): void {
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.onChanged) {
+      this.log('Chrome storage change listener is not available, skipping setup');
+      return;
+    }
+    
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== this.config.area) return;
       

@@ -9,7 +9,8 @@
     "history",
     "commands",
     "windows",
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   "host_permissions": [
     "https://suggestqueries.google.com/*"

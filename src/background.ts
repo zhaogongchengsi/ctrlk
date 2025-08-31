@@ -1,4 +1,5 @@
 import { searchManager } from "./search/search-manager";
+import { recommendationEngine } from "./recommendations/recommendation-engine";
 
 // 简单的状态存储
 const dialogStates = new Map<string, { isOpen: boolean; tabId: number }>();
@@ -119,6 +120,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 		console.log('All states after update:', Array.from(dialogStates.entries()));
 		
 		sendResponse({ success: true });
+	}
+	
+	// 处理推荐数据请求
+	if (message.type === 'GET_RECOMMENDATIONS') {
+		// 如果有自定义配置，更新推荐引擎配置
+		if (message.config) {
+			recommendationEngine.updateConfig(message.config);
+		} else if (message.limit) {
+			// 如果只传了limit，更新maxRecommendations配置
+			recommendationEngine.updateConfig({ maxRecommendations: message.limit });
+		}
+		
+		recommendationEngine.generateRecommendations()
+			.then(recommendations => {
+				sendResponse({ 
+					success: true, 
+					recommendations,
+					timestamp: Date.now()
+				});
+			})
+			.catch(error => {
+				console.error('Failed to generate recommendations:', error);
+				sendResponse({ 
+					success: false, 
+					error: error.message || 'Unknown error',
+					timestamp: Date.now()
+				});
+			});
+		
+		// 返回 true 表示我们将异步发送响应
+		return true;
 	}
 	
 	// 返回 true 表示我们可能会异步发送响应

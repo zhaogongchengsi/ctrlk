@@ -75,6 +75,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
       return;
     }
 
+    // 如果查询为空或长度不足，清空结果并停止loading
     if (searchQuery.length < minQueryLength) {
       setResults([]);
       setLoading(false);

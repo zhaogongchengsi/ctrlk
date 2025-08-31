@@ -1,5 +1,6 @@
 import { Command } from "@/components/command";
 import SearchResultsList from "./components/search/SearchResultsList";
+import { RecommendationsList } from "./recommendations/RecommendationsList";
 import { LoaderOne } from "@/components/ui/loader";
 import { useState, useRef, useEffect } from "react";
 import { useInputFocus, useDialogLifecycle } from "./hooks/useDialogLifecycle";
@@ -111,13 +112,22 @@ function App() {
           <div className="flex h-40 items-center justify-center">
             <LoaderOne />
           </div>
+        ) : currentQuery.trim() === "" ? (
+          // 没有搜索查询时显示推荐内容
+          <RecommendationsList
+            className="max-h-[320px]"
+            limit={8}
+            title="基于使用习惯的推荐"
+            emptyMessage="开始使用浏览器后，这里会显示个性化推荐"
+          />
         ) : (
+          // 有搜索查询时显示搜索结果
           <SearchResultsList
             className="max-h-[320px]"
             results={groupedResults}
             onSelectResult={handleResultSelect}
             maxResultsPerGroup={10}
-            emptyMessage={currentQuery ? "没有找到匹配的结果" : "开始输入以搜索内容..."}
+            emptyMessage="没有找到匹配的结果"
           />
         )}
       </Command.Root>
