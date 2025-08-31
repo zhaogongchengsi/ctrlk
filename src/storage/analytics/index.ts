@@ -20,21 +20,3 @@ export type {
   AnalyticsQueryResult,
   TimePeriodStats 
 } from './analytics-query';
-
-// 工具和演示
-export { AnalyticsDemo } from './analytics-demo';
-
-// 常用预设功能
-export {
-  initializeAnalytics,
-  getWebsiteOverview,
-  analyzeAccessPatterns,
-  getDailyTrends,
-  getCategoryBreakdown,
-  searchWebsite,
-  startRealTimeMonitoring,
-  exportAnalyticsData,
-  generateReport,
-  cleanupOldData,
-  runAnalyticsDemo
-} from './analytics-demo';
