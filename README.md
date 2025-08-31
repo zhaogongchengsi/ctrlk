@@ -1,218 +1,218 @@
-# CtrlK - 快速搜索浏览器扩展
+# CtrlK - Quick Search Browser Extension
 
 <div align="center">
   <img src="public/logo.png" alt="CtrlK Logo" width="128" height="128">
   
-  <p><strong>一个优雅的 Chrome 浏览器扩展，让您通过 Ctrl+K 快捷键快速搜索和访问书签与标签页</strong></p>
+  <p><strong>An elegant Chrome browser extension that allows you to quickly search and access bookmarks and tabs using the Ctrl+K shortcut</strong></p>
 
   [![Version](https://img.shields.io/badge/version-0.0.1-blue.svg)](package.json)
   [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
   [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-brightgreen.svg)](https://chrome.google.com/webstore)
 </div>
 
-## ✨ 功能特性
+## ✨ Features
 
-### 🔍 智能搜索
-- **实时搜索**: 输入时即时显示搜索结果
-- **多源搜索**: 同时搜索书签和当前打开的标签页
-- **模糊匹配**: 支持模糊搜索，无需输入完整标题
-- **智能评分**: 基于相关性对搜索结果进行排序
+### 🔍 Smart Search
+- **Real-time Search**: Display search results instantly as you type
+- **Multi-source Search**: Search through bookmarks and currently open tabs simultaneously
+- **Fuzzy Matching**: Support fuzzy search without needing to type complete titles
+- **Smart Scoring**: Sort search results based on relevance
 
-### ⚡ 快速访问
-- **快捷键支持**: 
+### ⚡ Quick Access
+- **Keyboard Shortcuts**: 
   - Windows/Linux: `Ctrl + K`
   - macOS: `Command + K`
-- **一键打开**: 点击搜索结果即可快速跳转到对应页面
-- **标签页切换**: 快速切换到已打开的标签页
-- **书签访问**: 在新标签页中打开书签
+- **One-click Open**: Click search results to quickly navigate to the corresponding page
+- **Tab Switching**: Quickly switch to already opened tabs
+- **Bookmark Access**: Open bookmarks in new tabs
 
-### 🎨 优雅界面
-- **现代设计**: 采用 React + Tailwind CSS 构建的现代化界面
-- **响应式布局**: 自适应不同屏幕尺寸
-- **图标显示**: 显示网站图标，便于快速识别
-- **分组展示**: 标签页和书签分组显示，清晰明了
+### 🎨 Elegant Interface
+- **Modern Design**: Modern interface built with React + Tailwind CSS
+- **Responsive Layout**: Adapts to different screen sizes
+- **Icon Display**: Shows website icons for quick identification
+- **Grouped Display**: Tabs and bookmarks are displayed in groups for clarity
 
-### 🔧 技术特性
-- **防抖搜索**: 300ms 防抖机制，提升搜索性能
-- **模态对话框**: 浮层式搜索面板，不影响当前页面
-- **键盘导航**: 支持键盘上下键选择搜索结果
-- **自动聚焦**: 打开面板时自动聚焦搜索框
+### 🔧 Technical Features
+- **Debounced Search**: 300ms debounce mechanism improves search performance
+- **Modal Dialog**: Floating search panel that doesn't interfere with current page
+- **Keyboard Navigation**: Support arrow key navigation through search results
+- **Auto Focus**: Automatically focus search box when panel opens
 
-## 🚀 快速开始
+## 🚀 Quick Start
 
-### 安装方式
+### Installation
 
-#### 方式一：Chrome 网上应用店（推荐）
-1. 访问 [Chrome 网上应用店](https://chrome.google.com/webstore)
-2. 搜索 "CtrlK"
-3. 点击"添加至 Chrome"
+#### Method 1: Chrome Web Store (Recommended)
+1. Visit the [Chrome Web Store](https://chrome.google.com/webstore)
+2. Search for "CtrlK"
+3. Click "Add to Chrome"
 
-#### 方式二：开发者模式安装
-1. 下载或克隆此仓库
-2. 运行 `pnpm install` 安装依赖
-3. 运行 `pnpm run build` 构建扩展
-4. 打开 Chrome 浏览器，进入 `chrome://extensions/`
-5. 启用"开发者模式"
-6. 点击"加载已解压的扩展程序"
-7. 选择项目的 `dist` 文件夹
+#### Method 2: Developer Mode Installation
+1. Download or clone this repository
+2. Run `pnpm install` to install dependencies
+3. Run `pnpm run build` to build the extension
+4. Open Chrome browser and navigate to `chrome://extensions/`
+5. Enable "Developer mode"
+6. Click "Load unpacked extension"
+7. Select the `dist` folder from the project
 
-### 使用方法
+### Usage
 
-1. **打开搜索面板**
-   - 按下 `Ctrl + K`（Windows/Linux）或 `Command + K`（macOS）
-   - 或点击浏览器工具栏中的 CtrlK 图标
+1. **Open Search Panel**
+   - Press `Ctrl + K` (Windows/Linux) or `Command + K` (macOS)
+   - Or click the CtrlK icon in the browser toolbar
 
-2. **搜索内容**
-   - 在搜索框中输入关键词
-   - 系统会实时显示匹配的书签和标签页
+2. **Search Content**
+   - Type keywords in the search box
+   - The system will display matching bookmarks and tabs in real-time
 
-3. **选择结果**
-   - 使用鼠标点击搜索结果
-   - 或使用键盘上下键选择，按 Enter 确认
+3. **Select Results**
+   - Click search results with mouse
+   - Or use arrow keys to navigate and press Enter to confirm
 
-4. **快速访问**
-   - 标签页：直接切换到该标签页
-   - 书签：在新标签页中打开书签链接
+4. **Quick Access**
+   - Tabs: Directly switch to that tab
+   - Bookmarks: Open bookmark link in a new tab
 
-## 🛠️ 技术栈
+## 🛠️ Tech Stack
 
-### 前端技术
-- **React 19**: 现代化的 UI 框架
-- **TypeScript**: 类型安全的 JavaScript
-- **Tailwind CSS 4**: 实用优先的 CSS 框架
-- **Vite**: 快速的构建工具
-- **cmdk**: 命令面板组件库
+### Frontend Technologies
+- **React 19**: Modern UI framework
+- **TypeScript**: Type-safe JavaScript
+- **Tailwind CSS 4**: Utility-first CSS framework
+- **Vite**: Fast build tool
+- **cmdk**: Command palette component library
 
-### UI 组件
-- **Radix UI**: 无样式、可访问的 UI 组件
-- **Lucide React**: 美观的图标库
-- **Class Variance Authority**: CSS 类变体管理
+### UI Components
+- **Radix UI**: Unstyled, accessible UI components
+- **Lucide React**: Beautiful icon library
+- **Class Variance Authority**: CSS class variant management
 
-### 搜索引擎
-- **Fuse.js**: 轻量级模糊搜索库
-- **RxJS**: 响应式编程库，处理异步操作
+### Search Engine
+- **Fuse.js**: Lightweight fuzzy search library
+- **RxJS**: Reactive programming library for handling async operations
 
-### 浏览器扩展
-- **Chrome Extension Manifest V3**: 最新的扩展规范
-- **Chrome APIs**: tabs、bookmarks、commands 等 API
+### Browser Extension
+- **Chrome Extension Manifest V3**: Latest extension specification
+- **Chrome APIs**: tabs, bookmarks, commands, and other APIs
 
-## 🔧 开发指南
+## 🔧 Development Guide
 
-### 环境要求
+### Requirements
 - Node.js >= 16
 - pnpm >= 7
 
-### 开发流程
+### Development Workflow
 
-1. **克隆仓库**
+1. **Clone Repository**
    ```bash
    git clone https://github.com/zhaogongchengsi/ctrlk.git
    cd ctrlk
    ```
 
-2. **安装依赖**
+2. **Install Dependencies**
    ```bash
    pnpm install
    ```
 
-3. **开发模式**
+3. **Development Mode**
    ```bash
    pnpm run dev
    ```
 
-4. **构建项目**
+4. **Build Project**
    ```bash
    pnpm run build
    ```
 
-5. **代码检查**
+5. **Code Linting**
    ```bash
    pnpm run lint
    ```
 
-### 构建说明
-- `pnpm run build:client`: 构建前端应用
-- `pnpm run build:main`: 构建扩展脚本
-- `pnpm run build`: 完整构建
+### Build Instructions
+- `pnpm run build:client`: Build frontend application
+- `pnpm run build:main`: Build extension scripts
+- `pnpm run build`: Complete build
 
-## 🎯 核心功能实现
+## 🎯 Core Feature Implementation
 
-### 搜索算法
-使用 Fuse.js 实现模糊搜索：
-- 支持标题和 URL 的模糊匹配
-- 可配置的相似度阈值
-- 智能评分排序
+### Search Algorithm
+Uses Fuse.js for fuzzy search implementation:
+- Support fuzzy matching of titles and URLs
+- Configurable similarity threshold
+- Smart scoring and sorting
 
-### 快捷键处理
-通过 Chrome Commands API 实现：
-- 跨平台快捷键支持
-- 全局快捷键监听
-- 冲突检测和处理
+### Keyboard Shortcut Handling
+Implemented through Chrome Commands API:
+- Cross-platform keyboard shortcut support
+- Global shortcut key listening
+- Conflict detection and handling
 
-### 数据源管理
-- **标签页**: 通过 Chrome Tabs API 获取当前打开的标签页
-- **书签**: 通过 Chrome Bookmarks API 获取用户书签
-- **实时同步**: 监听标签页和书签变化，保持数据最新
+### Data Source Management
+- **Tabs**: Get currently open tabs through Chrome Tabs API
+- **Bookmarks**: Get user bookmarks through Chrome Bookmarks API
+- **Real-time Sync**: Monitor tab and bookmark changes to keep data current
 
-### UI 交互
-- **模态对话框**: 使用 iframe 实现的浮层面板
-- **键盘导航**: 支持方向键和 Enter 键操作
-- **自动完成**: 实时搜索建议和结果预览
+### UI Interactions
+- **Modal Dialog**: Floating panel implemented using iframe
+- **Keyboard Navigation**: Support arrow keys and Enter key operations
+- **Auto-complete**: Real-time search suggestions and result preview
 
-## 🔒 权限说明
+## 🔒 Permissions
 
-扩展需要以下权限：
+The extension requires the following permissions:
 
-- **tabs**: 获取和切换标签页
-- **bookmarks**: 读取用户书签
-- **commands**: 注册快捷键
-- **windows**: 窗口管理
+- **tabs**: Get and switch tabs
+- **bookmarks**: Read user bookmarks
+- **commands**: Register keyboard shortcuts
+- **windows**: Window management
 
-所有权限仅用于核心功能，不会收集或上传任何用户数据。
+All permissions are used only for core functionality. No user data is collected or uploaded.
 
-## 🤝 贡献指南
+## 🤝 Contributing
 
-欢迎贡献代码！请遵循以下步骤：
+Contributions are welcome! Please follow these steps:
 
-1. Fork 此仓库
-2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
-3. 提交更改 (`git commit -m 'Add some amazing feature'`)
-4. 推送到分支 (`git push origin feature/amazing-feature`)
-5. 创建 Pull Request
+1. Fork this repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Create a Pull Request
 
-### 贡献准则
-- 遵循 TypeScript 和 ESLint 规范
-- 提交前运行测试和代码检查
-- 编写清晰的提交信息
-- 更新相关文档
+### Contribution Guidelines
+- Follow TypeScript and ESLint standards
+- Run tests and code checks before committing
+- Write clear commit messages
+- Update relevant documentation
 
-## 📝 更新日志
+## 📝 Changelog
 
 ### v0.0.1 (2024-08-27)
-- 🎉 初始版本发布
-- ✨ 实现基础搜索功能
-- 🔍 支持书签和标签页搜索
-- ⚡ 添加快捷键支持
-- 🎨 实现现代化 UI 界面
+- 🎉 Initial release
+- ✨ Implement basic search functionality
+- 🔍 Support bookmark and tab search
+- ⚡ Add keyboard shortcut support
+- 🎨 Implement modern UI interface
 
-## 📄 许可证
+## 📄 License
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 致谢
+## 🙏 Acknowledgments
 
-- [cmdk](https://github.com/pacocoursey/cmdk) - 优秀的命令面板组件
-- [Fuse.js](https://github.com/krisk/Fuse) - 强大的模糊搜索库
-- [Radix UI](https://github.com/radix-ui/primitives) - 高质量的 UI 组件
-- [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) - 实用的 CSS 框架
+- [cmdk](https://github.com/pacocoursey/cmdk) - Excellent command palette component
+- [Fuse.js](https://github.com/krisk/Fuse) - Powerful fuzzy search library
+- [Radix UI](https://github.com/radix-ui/primitives) - High-quality UI components
+- [Tailwind CSS](https://github.com/tailwindlabs/tailwindcss) - Utility-first CSS framework
 
-## 📞 联系方式
+## 📞 Contact
 
-- 作者: [zhaogongchengsi](https://github.com/zhaogongchengsi)
-- 问题反馈: [GitHub Issues](https://github.com/zhaogongchengsi/ctrlk/issues)
+- Author: [zhaogongchengsi](https://github.com/zhaogongchengsi)
+- Issue Reports: [GitHub Issues](https://github.com/zhaogongchengsi/ctrlk/issues)
 
 ---
 
 <div align="center">
-  <p>如果这个项目对您有帮助，请给它一个 ⭐ Star！</p>
+  <p>If this project helps you, please give it a ⭐ Star!</p>
 </div>
