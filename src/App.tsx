@@ -122,9 +122,11 @@ function App() {
   }, []);
 
   const handleResultSelect = async (result: SearchResult) => {
+    console.log("handleResultSelect called with:", result);
     try {
+      console.log("About to call openSearchResult for:", result.title);
       await openSearchResult(result);
-      console.log("Opened:", result.title);
+      console.log("Successfully opened:", result.title);
     } catch (error) {
       console.error("Failed to open result:", error);
     }
@@ -134,20 +136,20 @@ function App() {
   const handleDirectSearch = useCallback(async (query: string) => {
     try {
       const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-      
+
       // 在这里我们需要通过 chrome API 打开新标签页
       // 由于这是在 content script 中，我们需要发送消息给 background script
       const openRequest = {
-        type: 'OPEN_SEARCH_RESULT',
+        type: "OPEN_SEARCH_RESULT",
         result: {
           id: `direct-search-${Date.now()}`,
-          type: 'suggestion' as const,
+          type: "suggestion" as const,
           title: query,
           url: googleSearchUrl,
-          suggestion: query
-        }
+          suggestion: query,
+        },
       };
-      
+
       const response = await chrome.runtime.sendMessage(openRequest);
       if (response?.success) {
         console.log("Opened direct search for:", query);
@@ -160,21 +162,36 @@ function App() {
   }, []);
 
   // 处理 Command 组件的选择事件（回车键触发）
-  const handleCommandSelect = useCallback(async (value: string) => {
-    // 根据 value 查找对应的搜索结果
-    const selectedResult = results.find(result => result.id === value);
-    if (selectedResult) {
-      await handleResultSelect(selectedResult);
-    } else {
-      // 如果没有找到结果，检查是否是联想搜索
-      if (currentQuery.trim()) {
-        // 直接在 Google 中搜索当前查询
-        await handleDirectSearch(currentQuery.trim());
+  const handleCommandSelect = useCallback(
+    async (value: string) => {
+      console.log("handleCommandSelect called with value:", value);
+      
+      // 根据 value 查找对应的搜索结果
+      const selectedResult = results.find((result) => result.id === value);
+
+      console.log("Selected result:", { 
+        value, 
+        selectedResult, 
+        resultsCount: results.length,
+        allResultIds: results.map(r => r.id)
+      });
+
+      if (selectedResult) {
+        console.log("Calling handleResultSelect for:", selectedResult.title);
+        await handleResultSelect(selectedResult);
       } else {
-        console.log("No query to search for");
+        // 如果没有找到结果，检查是否是联想搜索
+        if (currentQuery.trim()) {
+          console.log("No result found, performing direct search for:", currentQuery.trim());
+          // 直接在 Google 中搜索当前查询
+          await handleDirectSearch(currentQuery.trim());
+        } else {
+          console.log("No query to search for");
+        }
       }
-    }
-  }, [results, currentQuery, handleDirectSearch]);
+    },
+    [results, currentQuery, handleDirectSearch],
+  );
 
   // 分组搜索结果
   const groupedResults = groupSearchResults(results);
@@ -187,8 +204,8 @@ function App() {
 
   return (
     <div className={cn("w-full md:w-200 mx-auto min-h-[400px]", wrapperClassName)}>
-      <Command.Root 
-        className="w-full h-full min-h-[400px]" 
+      <Command.Root
+        className="w-full h-full min-h-[400px]"
         onValueChange={performSearch}
         onSelect={handleCommandSelect}
       >

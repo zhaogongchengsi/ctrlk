@@ -50,17 +50,23 @@ export const searchBookmarksAndTabs = searchBookmarksTabsAndHistory;
  * 打开搜索结果
  */
 export async function openSearchResult(result: SearchResult): Promise<void> {
+  console.log("openSearchResult called for:", result.title, "type:", result.type);
+  
   try {
     const request: OpenResultRequest = {
       type: 'OPEN_SEARCH_RESULT',
       result
     };
 
+    console.log("Sending message to background script:", request);
     const response = await chrome.runtime.sendMessage(request) as { success: boolean; error?: string };
+    console.log("Received response from background script:", response);
     
     if (!response.success) {
       throw new Error(response.error || 'Failed to open result');
     }
+    
+    console.log("Successfully processed open result for:", result.title);
   } catch (error) {
     console.error('Failed to open result:', error);
     throw error;

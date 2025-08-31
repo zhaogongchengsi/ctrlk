@@ -5,7 +5,6 @@ import { groupSearchResults, openSearchResult, RxSearchManager } from "@/search/
 import type { SearchResult } from "@/search/search-engine";
 import { useCallback, useState, useEffect, useRef } from "react";
 
-
 export default function PageChat() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,10 +22,10 @@ export default function PageChat() {
         setLoading(false);
       },
       (error) => {
-        console.error('Search error:', error);
+        console.error("Search error:", error);
         setResults([]);
         setLoading(false);
-      }
+      },
     );
 
     // 清理函数
@@ -38,13 +37,13 @@ export default function PageChat() {
 
   const performSearch = useCallback((value: string) => {
     if (!searchManagerRef.current) return;
-    
+
     if (!value.trim()) {
       setResults([]);
       setLoading(false);
       return;
     }
-    
+
     // 只有在查询不为空时才显示loading状态
     setLoading(true);
     searchManagerRef.current.search(value);
@@ -59,18 +58,27 @@ export default function PageChat() {
     }
   };
 
+  // 处理 Command 组件的选择事件（回车键触发）
+  const handleCommandSelect = useCallback(
+    async (value: string) => {
+      // 根据 value 查找对应的搜索结果
+      const selectedResult = results.find((result) => result.id === value);
+
+      if (selectedResult) {
+        console.log("Calling handleResultSelect for:", selectedResult.title);
+        await handleResultSelect(selectedResult);
+      }
+    },
+    [results],
+  );
+
   // 分组搜索结果
   const groupedResults = groupSearchResults(results);
 
   return (
     <div className="w-full md:w-200 mx-auto">
-      <Command.Root 
-        className="w-full"
-        onValueChange={performSearch}
-      >
-        <Command.Input
-          placeholder="搜索书签、标签页、历史记录和建议..."
-        />
+      <Command.Root className="w-full" onValueChange={performSearch} onSelect={handleCommandSelect}>
+        <Command.Input placeholder="搜索书签、标签页、历史记录和建议..." />
         <div className="ctrlk-raycast-loader" />
         {loading ? (
           <div className="flex h-40 items-center justify-center">

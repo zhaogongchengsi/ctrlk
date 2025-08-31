@@ -1,6 +1,4 @@
 import { SearchEngine, type SearchResult } from './search-engine';
-import { Subject, from, Subscription, of } from 'rxjs';
-import { mergeMap, catchError, retry, timeout } from 'rxjs/operators';
 
 export interface SearchRequest {
   type: 'SEARCH_BOOKMARKS_TABS';
@@ -26,14 +24,11 @@ export interface StatsRequest {
 export class SearchManager {
   private searchEngine: SearchEngine;
   private isInitializing = false;
-  private openResultSubject = new Subject<OpenResultRequest>();
-  private openResultSubscription: Subscription | null = null;
 
   constructor() {
     this.searchEngine = new SearchEngine();
     this.setupMessageListeners();
     this.setupEventListeners();
-    this.setupOpenResultStream();
   }
 
   async initialize(): Promise<void> {
@@ -55,47 +50,38 @@ export class SearchManager {
     }
   }
 
-  private setupOpenResultStream(): void {
-    this.openResultSubscription = this.openResultSubject.pipe(
-      mergeMap((request: OpenResultRequest) =>
-        from(this.processOpenResult(request)).pipe(
-          timeout(10000), // 10秒超时
-          retry(2), // 失败重试2次
-          catchError((error) => {
-            console.error('Failed to open search result:', error);
-            return of({
-              success: false,
-              error: error instanceof Error ? error.message : 'Failed to open result'
-            });
-          })
-        )
-      )
-    ).subscribe({
-      next: (result) => {
-        console.log('Open result completed:', result);
-      },
-      error: (error) => {
-        console.error('Open result stream error:', error);
-      }
-    });
-  }
-
   private setupMessageListeners(): void {
     chrome.runtime.onMessage.addListener((
       message: SearchRequest | OpenResultRequest | StatsRequest,
       _sender,
       sendResponse
     ) => {
-      if (message.type === 'SEARCH_BOOKMARKS_TABS') {
-        this.handleSearchRequest(message as SearchRequest, sendResponse);
-        return true; // 表示异步响应
-      } else if (message.type === 'OPEN_SEARCH_RESULT') {
-        this.handleOpenResult(message as OpenResultRequest, sendResponse);
-        return true;
-      } else if (message.type === 'GET_SEARCH_STATS') {
-        sendResponse(this.getStats());
+      try {
+        if (message.type === 'SEARCH_BOOKMARKS_TABS') {
+          this.handleSearchRequest(message as SearchRequest, sendResponse);
+          return true; // 表示异步响应
+        } else if (message.type === 'OPEN_SEARCH_RESULT') {
+          this.handleOpenResult(message as OpenResultRequest, sendResponse);
+          return true; // 表示异步响应
+        } else if (message.type === 'GET_SEARCH_STATS') {
+          // 同步响应
+          try {
+            const stats = this.getStats();
+            sendResponse(stats);
+          } catch (error) {
+            console.error('Failed to get stats:', error);
+            sendResponse({ error: 'Failed to get stats' });
+          }
+          return false; // 表示同步响应
+        }
+      } catch (error) {
+        console.error('Message listener error:', error);
+        sendResponse({ error: 'Message processing failed' });
         return false;
       }
+      
+      // 未知消息类型
+      return false;
     });
   }
 
@@ -194,33 +180,37 @@ export class SearchManager {
     request: OpenResultRequest,
     sendResponse: (response: { success: boolean; error?: string }) => void
   ): Promise<void> {
-    // 使用 RxJS 流处理
-    this.openResultSubject.next(request);
+    console.log("handleOpenResult called in SearchManager for:", request.result.title);
     
-    // 同时为兼容性提供直接响应
     try {
+      // 直接处理，不再使用双重处理
       const result = await this.processOpenResult(request);
+      console.log("processOpenResult completed, sending response:", result);
       sendResponse(result);
     } catch (error) {
       console.error('Failed to open search result:', error);
-      sendResponse({
+      const errorResponse = {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to open result'
-      });
+      };
+      console.log("Sending error response:", errorResponse);
+      sendResponse(errorResponse);
     }
   }
 
   private async processOpenResult(
     request: OpenResultRequest
   ): Promise<{ success: boolean; error?: string }> {
+    const result = request.result;
+    console.log("processOpenResult - processing result:", result.title, "type:", result.type);
+    
     try {
-      const result = request.result;
-      
       if (result.type === 'suggestion') {
         // 处理搜索联想：打开 Google 搜索
         const searchQuery = result.suggestion || result.title;
         const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchQuery)}`;
         
+        console.log("Opening Google search for suggestion:", searchQuery);
         await chrome.tabs.create({
           url: googleSearchUrl,
           active: true
@@ -232,6 +222,7 @@ export class SearchManager {
       
       if (result.type === 'bookmark') {
         // 打开书签在新标签页
+        console.log("Opening bookmark:", result.url);
         await chrome.tabs.create({
           url: result.url,
           active: true
@@ -239,6 +230,7 @@ export class SearchManager {
       } else if (result.type === 'tab') {
         // 切换到现有标签页
         const tabId = parseInt(result.id.replace('tab-', ''));
+        console.log("Switching to tab:", tabId);
         
         // 先检查标签页是否还存在
         try {
@@ -251,6 +243,7 @@ export class SearchManager {
           }
         } catch {
           // 标签页不存在，在新标签页中打开URL
+          console.log("Tab not found, opening in new tab:", result.url);
           await chrome.tabs.create({
             url: result.url,
             active: true
@@ -258,12 +251,14 @@ export class SearchManager {
         }
       } else if (result.type === 'history') {
         // 打开历史记录在新标签页
+        console.log("Opening history item:", result.url);
         await chrome.tabs.create({
           url: result.url,
           active: true
         });
       }
 
+      console.log("Successfully processed open result for:", result.title);
       return { success: true };
     } catch (error) {
       console.error('Failed to process open result:', error);
@@ -290,14 +285,8 @@ export class SearchManager {
   }
 
   public destroy(): void {
-    // 清理 RxJS 订阅
-    if (this.openResultSubscription) {
-      this.openResultSubscription.unsubscribe();
-      this.openResultSubscription = null;
-    }
-    
-    // 完成 Subject
-    this.openResultSubject.complete();
+    // 清理资源，目前没有需要特别清理的资源
+    console.log('SearchManager destroyed');
   }
 }
 
