@@ -24,20 +24,14 @@ function App() {
       if (event.data?.type === "SET_THEME") {
         const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
         const receivedTheme = mediaQuery.matches ? "dark" : ("light" as "dark" | "light");
-        console.log("Received theme from parent:", receivedTheme);
-
         // 设置强制主题
         setForceTheme(receivedTheme);
-
         // 立即应用主题到body
         if (mediaQuery.matches) {
           document.body.classList.add("dark");
         } else {
           document.body.classList.remove("dark");
         }
-
-        console.log("Applied theme to body:", { mediaQuery, receivedTheme });
-
         // 通知父页面主题设置完成
         setTimeout(() => {
           window.parent.postMessage(
