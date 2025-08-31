@@ -100,7 +100,7 @@ export function RecommendationsList({
               key={item.id}
               value={item.id}
               onSelect={() => handleItemSelect(item)}
-              className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer"
+              className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer first:mt-[8px] last:mb-1"
             >
               <div className="flex-shrink-0">
                 {item.favicon ? (
@@ -138,7 +138,7 @@ export function RecommendationsList({
               key={item.id}
               value={item.id}
               onSelect={() => handleItemSelect(item)}
-              className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer"
+              className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer first:mt-[8px] last:mb-1"
             >
               <div className="flex-shrink-0">
                 {item.favicon ? (
@@ -176,7 +176,7 @@ export function RecommendationsList({
               key={item.id}
               value={item.id}
               onSelect={() => handleItemSelect(item)}
-              className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer"
+              className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer first:mt-[8px] last:mb-1"
             >
               <div className="flex-shrink-0">
                 {item.favicon ? (

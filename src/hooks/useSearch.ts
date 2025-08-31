@@ -35,6 +35,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const [currentQuery, setCurrentQuery] = useState('');
   const [isComposing, setIsComposing] = useState(false);
   const searchManagerRef = useRef<RxSearchManager | null>(null);
+  
+  // 用于跟踪最新的查询状态，避免异步竞争条件
+  const latestQueryRef = useRef('');
 
   // 初始化搜索管理器
   useEffect(() => {
@@ -44,9 +47,42 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     // 订阅搜索结果
     const subscription = searchManager.subscribe(
       (searchResults, query) => {
-        setResults(searchResults);
-        setCurrentQuery(query);
-        setLoading(false);
+        // 检查这个结果是否仍然有效（没有被更新的查询覆盖）
+        if (latestQueryRef.current !== query) {
+          console.log('Ignoring outdated search result:', { 
+            resultQuery: query, 
+            currentQuery: latestQueryRef.current 
+          });
+          return;
+        }
+        
+        // 检查当前输入框的实际值，防止异步结果覆盖空输入状态
+        // 使用 setTimeout 确保在下一个事件循环中检查最新的DOM状态
+        setTimeout(() => {
+          // 再次检查查询是否仍然有效
+          if (latestQueryRef.current !== query) {
+            console.log('Query changed during async check, ignoring result');
+            return;
+          }
+          
+          // 获取当前输入框的实际值
+          const currentInputValue = document.querySelector('[cmdk-input]') as HTMLInputElement;
+          const actualCurrentValue = currentInputValue?.value || '';
+          
+          // 如果当前输入框为空，但搜索结果不是针对空查询的，则忽略这个结果
+          if (actualCurrentValue.trim() === '' && query.trim() !== '') {
+            console.log('Ignoring search result because input is now empty:', { query, actualCurrentValue });
+            setResults([]);
+            setCurrentQuery('');
+            setLoading(false);
+            return;
+          }
+          
+          // 如果查询匹配，正常更新结果
+          setResults(searchResults);
+          setCurrentQuery(query);
+          setLoading(false);
+        }, 0);
       },
       (error) => {
         console.error('Search error:', error);
@@ -66,6 +102,9 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
   const performSearch = useCallback((searchQuery: string) => {
     if (!searchManagerRef.current) return;
 
+    // 更新最新查询引用
+    latestQueryRef.current = searchQuery;
+    
     // 更新当前查询状态（即使为空也要更新）
     setCurrentQuery(searchQuery);
 
@@ -176,6 +215,7 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
 
   // 清空搜索结果
   const clearResults = useCallback(() => {
+    latestQueryRef.current = '';
     setResults([]);
     setCurrentQuery('');
     setLoading(false);
@@ -187,12 +227,20 @@ export function useSearch(options: UseSearchOptions = {}): UseSearchReturn {
     console.log('Composition ended - resuming search');
     setIsComposing(false);
     
+    // 更新最新查询引用
+    latestQueryRef.current = query;
+    
     // 组合输入结束后，立即执行搜索
     if (query && query.length >= minQueryLength) {
       setLoading(true);
       if (searchManagerRef.current) {
         searchManagerRef.current.search(query);
       }
+    } else if (query.trim() === '') {
+      // 如果组合输入结束后输入框为空，清空结果
+      setResults([]);
+      setCurrentQuery('');
+      setLoading(false);
     }
   }, [minQueryLength]);
 
