@@ -56,10 +56,19 @@ interface IndexDocument {
   visitCount?: number;
 }
 
+interface AnalyticsData {
+  visitCount?: number;
+  lastVisit?: number;
+  averageDuration?: number;
+}
+
 export class SearchEngine {
   private fuse: Fuse<IndexDocument> | null = null;
   private documents: IndexDocument[] = [];
   private isInitialized = false;
+  
+  // 分析缓存相关属性
+  private analyticsCache: Record<string, AnalyticsData> = {};
 
   constructor() {
     // 初始化时创建空的Fuse实例
@@ -306,17 +315,173 @@ export class SearchEngine {
         }
       }
 
-      // 转换为数组并排序
+      // 转换为数组并应用智能排序
       const searchResults = Array.from(allResults.values());
       const uniqueResults = this.deduplicateResults(searchResults);
       
-      return uniqueResults
-        .sort((a, b) => (b.score || 0) - (a.score || 0))
-        .slice(0, limit);
+      // 应用增强的排序算法
+      return this.applySortingOptimization(uniqueResults, cleanQuery, limit);
     } catch (error) {
       console.error('Search failed:', error);
       return [];
     }
+  }
+
+  /**
+   * 应用排序优化算法
+   */
+  private applySortingOptimization(results: SearchResult[], query: string, limit: number): SearchResult[] {
+    const queryLower = query.toLowerCase();
+    
+    // 1. 先进行基础分组和优先级调整
+    const optimizedResults = results.map(result => {
+      let adjustedScore = result.score || 0;
+      const titleLower = result.title.toLowerCase();
+      
+      // 精确匹配获得最高优先级
+      if (titleLower === queryLower) {
+        adjustedScore += 1000;
+      }
+      
+      // 标题开头匹配获得高优先级
+      else if (titleLower.startsWith(queryLower)) {
+        adjustedScore += 500;
+      }
+      
+      // 包含完整查询词的优先级
+      else if (titleLower.includes(queryLower)) {
+        adjustedScore += 200;
+      }
+      
+      // URL域名匹配加分
+      try {
+        const domain = new URL(result.url).hostname.toLowerCase();
+        if (domain.includes(queryLower)) {
+          adjustedScore += 100;
+        }
+      } catch {
+        // 忽略URL解析错误
+      }
+      
+      // 类型优先级调整
+      switch (result.type) {
+        case 'tab':
+          adjustedScore += 150; // 当前标签页最高优先级
+          break;
+        case 'bookmark':
+          adjustedScore += 100; // 书签次高优先级
+          break;
+        case 'history':
+          adjustedScore += 50; // 历史记录中等优先级
+          break;
+        case 'suggestion':
+          adjustedScore -= 50; // 搜索建议较低优先级
+          break;
+      }
+      
+      // 用户习惯优化（异步但不阻塞）
+      this.applyUserHabitOptimization(result).then(habitBoost => {
+        if (habitBoost > 0) {
+          // 这里可以触发结果重新排序的事件，但为了简单起见，我们在初始排序中应用
+        }
+      }).catch(() => {
+        // 静默失败，不影响基础搜索
+      });
+      
+      // 尝试同步获取用户习惯加成（使用缓存）
+      const habitBoost = this.getQuickUserHabitBoost(result);
+      adjustedScore += habitBoost;
+      
+      // 历史记录特殊处理
+      if (result.type === 'history') {
+        // 访问频率加分
+        if (result.visitCount && result.visitCount > 1) {
+          adjustedScore += Math.min(result.visitCount * 5, 100);
+        }
+        
+        // 最近访问时间加分
+        if (result.lastVisitTime) {
+          const daysSinceVisit = (Date.now() - result.lastVisitTime) / (24 * 60 * 60 * 1000);
+          if (daysSinceVisit < 1) {
+            adjustedScore += 80; // 今天访问过
+          } else if (daysSinceVisit < 7) {
+            adjustedScore += 40; // 一周内访问过
+          } else if (daysSinceVisit < 30) {
+            adjustedScore += 20; // 一个月内访问过
+          }
+        }
+      }
+      
+      // 标题长度优化（较短的标题通常更相关）
+      const titleLength = result.title.length;
+      if (titleLength < 30) {
+        adjustedScore += 20;
+      } else if (titleLength > 80) {
+        adjustedScore -= 10;
+      }
+      
+      return {
+        ...result,
+        score: adjustedScore,
+        originalScore: result.score || 0
+      };
+    });
+    
+    // 2. 多层级排序
+    const sortedResults = optimizedResults.sort((a, b) => {
+      // 首先按调整后的分数排序
+      const scoreDiff = (b.score || 0) - (a.score || 0);
+      if (Math.abs(scoreDiff) > 10) {
+        return scoreDiff;
+      }
+      
+      // 分数相近时，应用细致的排序规则
+      
+      // 精确匹配优先
+      const aExactMatch = a.title.toLowerCase() === queryLower;
+      const bExactMatch = b.title.toLowerCase() === queryLower;
+      if (aExactMatch !== bExactMatch) {
+        return aExactMatch ? -1 : 1;
+      }
+      
+      // 开头匹配优先
+      const aStartsWithQuery = a.title.toLowerCase().startsWith(queryLower);
+      const bStartsWithQuery = b.title.toLowerCase().startsWith(queryLower);
+      if (aStartsWithQuery !== bStartsWithQuery) {
+        return aStartsWithQuery ? -1 : 1;
+      }
+      
+      // 类型优先级
+      const typeOrder = { tab: 0, bookmark: 1, history: 2, suggestion: 3 };
+      const aTypeOrder = typeOrder[a.type] || 999;
+      const bTypeOrder = typeOrder[b.type] || 999;
+      if (aTypeOrder !== bTypeOrder) {
+        return aTypeOrder - bTypeOrder;
+      }
+      
+      // 对于历史记录，按访问时间和频率排序
+      if (a.type === 'history' && b.type === 'history') {
+        // 优先按访问频率
+        const aVisitCount = a.visitCount || 0;
+        const bVisitCount = b.visitCount || 0;
+        if (aVisitCount !== bVisitCount) {
+          return bVisitCount - aVisitCount;
+        }
+        
+        // 然后按最近访问时间
+        const aLastVisit = a.lastVisitTime || 0;
+        const bLastVisit = b.lastVisitTime || 0;
+        if (aLastVisit !== bLastVisit) {
+          return bLastVisit - aLastVisit;
+        }
+      }
+      
+      // 最后按标题长度排序（短标题优先）
+      return a.title.length - b.title.length;
+    });
+    
+    // 3. 返回限制数量的结果
+    return sortedResults.slice(0, limit);
   }
 
   private async getGoogleSuggestions(query: string): Promise<string[]> {
@@ -670,4 +835,54 @@ export class SearchEngine {
       indexSize: this.isInitialized ? `${this.documents.length} documents` : 'Not available'
     };
   }
+
+  /**
+   * 快速获取用户习惯加成（基于缓存）
+   */
+  private getQuickUserHabitBoost(result: SearchResult): number {
+    try {
+      const domain = this.extractMainDomain(result.url);
+      const analytics = this.analyticsCache[domain];
+      
+      if (!analytics) {
+        return 0;
+      }
+      
+      let boost = 0;
+      
+      // 基于访问频率的快速加成
+      if (analytics.visitCount && analytics.visitCount > 0) {
+        boost += Math.min(Math.log(analytics.visitCount + 1) * 2, 20);
+      }
+      
+      // 基于最近访问的快速加成
+      if (analytics.lastVisit) {
+        const daysSinceVisit = (Date.now() - analytics.lastVisit) / (24 * 60 * 60 * 1000);
+        if (daysSinceVisit < 1) {
+          boost += 30; // 今天访问过
+        } else if (daysSinceVisit < 7) {
+          boost += 15; // 一周内访问过
+        } else if (daysSinceVisit < 30) {
+          boost += 5; // 一个月内访问过
+        }
+      }
+      
+      return Math.floor(boost);
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * 异步应用用户习惯优化（简化版本）
+   */
+  private async applyUserHabitOptimization(result: SearchResult): Promise<number> {
+    try {
+      // 目前返回基础值，可以后续扩展
+      return this.getQuickUserHabitBoost(result);
+    } catch {
+      return 0;
+    }
+  }
+
 }
