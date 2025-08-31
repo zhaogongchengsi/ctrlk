@@ -2,11 +2,12 @@ import { Command } from "@/components/command";
 import SearchResultsList from "./components/search/SearchResultsList";
 import { RecommendationsList } from "./recommendations/RecommendationsList";
 import { LoaderOne } from "@/components/ui/loader";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useInputFocus, useDialogLifecycle } from "./hooks/useDialogLifecycle";
 import { useTheme } from "./hooks/useTheme";
 import { useSearch } from "./hooks/useSearch";
 import { cn } from "./lib/utils";
+import { useRecommendations } from "./recommendations/useRecommendations";
 
 function App() {
   const [forceTheme, setForceTheme] = useState<"dark" | "light" | null>(null);
@@ -15,19 +16,40 @@ function App() {
   const theme = forceTheme || detectedTheme;
 
   // 使用统一的搜索 hook，启用直接搜索功能
+  const { loading, groupedResults, currentQuery, performSearch, handleResultSelect, handleCommandSelect, inputProps } =
+    useSearch({
+      debounceDelay: 300,
+      minQueryLength: 2,
+      enableDirectSearch: true,
+    });
+
   const {
-    loading,
-    groupedResults,
-    currentQuery,
-    performSearch,
-    handleResultSelect,
-    handleCommandSelect,
-    inputProps
-  } = useSearch({ 
-    debounceDelay: 300, 
-    minQueryLength: 2, 
-    enableDirectSearch: true 
-  });
+    recommendations,
+    loading: getRecommendationLoading,
+    error,
+    handleRecommendationSelect,
+  } = useRecommendations({ limit: 10 });
+
+  // 统一的选择处理函数，根据类型分别处理
+  const handleUnifiedSelect = useCallback(
+    async (value: string, type?: string) => {
+      console.log("handleUnifiedSelect called with:", { value, type });
+
+      if (type === "recommendation") {
+        console.log("Handling recommendation selection:", value);
+        await handleRecommendationSelect(value);
+      } else if (type === "search") {
+        // 搜索结果选择
+        console.log("Handling search result selection:", value);
+        await handleCommandSelect(value);
+      } else {
+        // 默认处理（回退到原有逻辑）
+        console.log("Handling default selection:", value);
+        await handleCommandSelect(value);
+      }
+    },
+    [handleCommandSelect, handleRecommendationSelect],
+  );
 
   // 监听来自父页面的消息
   useEffect(() => {
@@ -100,13 +122,9 @@ function App() {
       <Command.Root
         className="w-full h-full min-h-[400px]"
         onValueChange={performSearch}
-        onSelect={handleCommandSelect}
+        onSelect={handleUnifiedSelect}
       >
-        <Command.Input 
-          ref={inputRef} 
-          placeholder="搜索书签、标签页、历史记录和建议..."
-          {...inputProps}
-        />
+        <Command.Input ref={inputRef} placeholder="搜索书签、标签页、历史记录和建议..." {...inputProps} />
         <div className="ctrlk-raycast-loader" />
         {loading ? (
           <div className="flex h-40 items-center justify-center">
@@ -116,9 +134,10 @@ function App() {
           // 没有搜索查询时显示推荐内容
           <RecommendationsList
             className="max-h-[320px]"
-            limit={8}
+            recommendations={recommendations}
+            loading={getRecommendationLoading}
+            error={error}
             title="基于使用习惯的推荐"
-            emptyMessage="开始使用浏览器后，这里会显示个性化推荐"
           />
         ) : (
           // 有搜索查询时显示搜索结果

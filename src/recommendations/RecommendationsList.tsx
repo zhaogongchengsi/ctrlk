@@ -1,72 +1,45 @@
 import { Command } from "@/components/command";
 import { LoaderOne } from "@/components/ui/loader";
-import { useRecommendations } from "./useRecommendations";
 import type { RecommendationItem } from "./recommendation-engine";
-import { openSearchResult } from "@/search/search-api";
 import { cn } from "@/lib/utils";
 
 interface RecommendationsListProps {
   className?: string;
-  limit?: number;
   title?: string;
-  onSelectItem?: (item: RecommendationItem) => void;
-  emptyMessage?: string;
+  loading?: boolean;
+  error: string | null;
+  recommendations: RecommendationItem[];
 }
 
-export function RecommendationsList({ 
+export function RecommendationsList({
   className = "",
-  limit = 6, 
-  onSelectItem,
-  emptyMessage = "开始使用浏览器后，这里会显示个性化推荐"
+  recommendations = [],
+  loading,
+  error,
 }: RecommendationsListProps) {
-  const { recommendations, loading, error } = useRecommendations({ limit });
-
-  const handleItemSelect = async (item: RecommendationItem) => {
-    if (onSelectItem) {
-      onSelectItem(item);
-      return;
-    }
-
-    try {
-      // 转换为SearchResult格式并打开
-      const searchResult = {
-        id: item.id,
-        type: item.type as "bookmark" | "tab" | "history",
-        title: item.title,
-        url: item.url,
-        favicon: item.favicon,
-        snippet: item.snippet
-      };
-      
-      await openSearchResult(searchResult);
-    } catch (error) {
-      console.error('Failed to open recommendation:', error);
-    }
-  };
-
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'tab':
-        return '🔗';
-      case 'bookmark':
-        return '⭐';
-      case 'history':
-        return '🕒';
+      case "tab":
+        return "🔗";
+      case "bookmark":
+        return "⭐";
+      case "history":
+        return "🕒";
       default:
-        return '📄';
+        return "📄";
     }
   };
 
   // 按类型分组推荐
   const groupedRecommendations = {
-    tabs: recommendations.filter(item => item.type === 'tab'),
-    bookmarks: recommendations.filter(item => item.type === 'bookmark'),
-    history: recommendations.filter(item => item.type === 'history')
+    tabs: recommendations.filter((item) => item.type === "tab"),
+    bookmarks: recommendations.filter((item) => item.type === "bookmark"),
+    history: recommendations.filter((item) => item.type === "history"),
   };
 
   if (loading) {
     return (
-      <Command.List className={cn(className, 'recommendations-list')}>
+      <Command.List className={cn(className, "recommendations-list")}>
         <div className="flex items-center justify-center py-8">
           <LoaderOne />
         </div>
@@ -82,13 +55,13 @@ export function RecommendationsList({
     );
   }
 
-  if (recommendations.length === 0) {
-    return (
-      <Command.List className={cn(className, "recommendations-list")}>
-        <Command.Empty className="py-6 text-center text-sm">{emptyMessage}</Command.Empty>
-      </Command.List>
-    );
-  }
+  // if (recommendations.length === 0) {
+  //   return (
+  //     <Command.List className={cn(className, "recommendations-list")}>
+  //       <Command.Empty className="py-6 text-center text-sm">{emptyMessage}</Command.Empty>
+  //     </Command.List>
+  //   );
+  // }
 
   return (
     <Command.List className={cn(className, "recommendations-list")}>
@@ -99,7 +72,7 @@ export function RecommendationsList({
             <Command.Item
               key={item.id}
               value={item.id}
-              onSelect={() => handleItemSelect(item)}
+              type="recommendation"
               className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer first:mt-[8px] last:mb-1"
             >
               <div className="flex-shrink-0">
@@ -137,7 +110,7 @@ export function RecommendationsList({
             <Command.Item
               key={item.id}
               value={item.id}
-              onSelect={() => handleItemSelect(item)}
+              type="recommendation"
               className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer first:mt-[8px] last:mb-1"
             >
               <div className="flex-shrink-0">
@@ -175,7 +148,7 @@ export function RecommendationsList({
             <Command.Item
               key={item.id}
               value={item.id}
-              onSelect={() => handleItemSelect(item)}
+              type="recommendation"
               className="flex items-center gap-3 px-3 py-2 text-sm cursor-pointer first:mt-[8px] last:mb-1"
             >
               <div className="flex-shrink-0">

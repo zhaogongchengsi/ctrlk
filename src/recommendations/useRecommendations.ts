@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RecommendationItem, RecommendationConfig } from './recommendation-engine';
+import { openSearchResult } from '@/search/search-api';
 
 interface UseRecommendationsOptions {
   limit?: number;
@@ -13,6 +14,7 @@ interface UseRecommendationsReturn {
   loading: boolean;
   error: string | null;
   refreshRecommendations: () => Promise<void>;
+  handleRecommendationSelect: (value: string) => Promise<void>
 }
 
 export function useRecommendations(
@@ -32,11 +34,11 @@ export function useRecommendations(
 
   const fetchRecommendations = useCallback(async () => {
     if (loadingRef.current) return; // 防止重复加载
-    
+
     loadingRef.current = true;
     setLoading(true);
     setError(null);
-    
+
     try {
       // 通过Chrome消息API请求推荐数据
       const response = await chrome.runtime.sendMessage({
@@ -46,7 +48,7 @@ export function useRecommendations(
       });
 
       console.log('Received recommendations response:', response);
-      
+
       if (response.success) {
         setRecommendations(response.recommendations || []);
       } else {
@@ -64,17 +66,40 @@ export function useRecommendations(
     }
   }, [limit, config]);
 
+  const handleRecommendationSelect = useCallback(async (value: string) => {
+    console.log('handleCommandSelect called with value:', value);
+
+    // 根据 value 查找对应的搜索结果
+    const selectedResult = recommendations.find(result => result.id === value);
+
+    if (selectedResult) {
+      const searchResult = {
+        id: selectedResult.id,
+        type: selectedResult.type as "bookmark" | "tab" | "history",
+        title: selectedResult.title,
+        url: selectedResult.url,
+        favicon: selectedResult.favicon,
+        snippet: selectedResult.snippet
+      };
+
+      await openSearchResult(searchResult);
+    } else {
+      console.log('No matching result found and direct search is disabled');
+    }
+  }, [recommendations]);
+
+
   // 组件挂载时获取推荐
   useEffect(() => {
     let mounted = true;
-    
+
     const loadInitialData = async () => {
       if (!mounted || loadingRef.current) return;
-      
+
       loadingRef.current = true;
       setLoading(true);
       setError(null);
-      
+
       try {
         const response = await chrome.runtime.sendMessage({
           type: 'GET_RECOMMENDATIONS',
@@ -83,7 +108,7 @@ export function useRecommendations(
         });
 
         console.log('Initial recommendations response:', response);
-        
+
         if (mounted) {
           if (response.success) {
             setRecommendations(response.recommendations || []);
@@ -129,6 +154,7 @@ export function useRecommendations(
     recommendations,
     loading,
     error,
+    handleRecommendationSelect,
     refreshRecommendations: fetchRecommendations
   };
 }

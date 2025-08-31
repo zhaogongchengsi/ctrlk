@@ -10,20 +10,20 @@ interface CommandContextValue {
   // Selection state
   value: string;
   setValue: (value: string) => void;
-  
+
   // Search state
   search: string;
   setSearch: (search: string) => void;
   clearAll: () => void;
-  
+
   // Items management
-  registerItem: (id: string, value: string, _keywords?: string[], disabled?: boolean) => () => void;
-  
+  registerItem: (id: string, value: string, type?: string, _keywords?: string[], disabled?: boolean) => () => void;
+
   // Refs for DOM access
   listRef: React.RefObject<HTMLDivElement | null>;
-  
+
   // Callbacks
-  onSelect?: (value: string) => void;
+  onSelect?: (value: string, type?: string) => void;
   onValueChange?: (value: string) => void;
 }
 
@@ -43,7 +43,7 @@ const useCommand = () => {
 
 const ITEM_SELECTOR = '[cmdk-item=""]';
 const VALID_ITEM_SELECTOR = `${ITEM_SELECTOR}:not([aria-disabled="true"])`;
-const VALUE_ATTR = 'data-value';
+const VALUE_ATTR = "data-value";
 
 // ===========================================
 // Command Root Component
@@ -52,7 +52,7 @@ const VALUE_ATTR = 'data-value';
 export interface CommandRootProps {
   value?: string;
   onValueChange?: (value: string) => void;
-  onSelect?: (value: string) => void;
+  onSelect?: (value: string, type?: string) => void;
   children?: React.ReactNode;
 }
 
@@ -63,8 +63,8 @@ export const CommandRoot = React.forwardRef<
   const [internalValue, setInternalValue] = React.useState("");
   const [search, setSearch] = React.useState("");
   const listRef = React.useRef<HTMLDivElement | null>(null);
-  const itemsRef = React.useRef<Map<string, { value: string; disabled: boolean }>>(new Map());
-  
+  const itemsRef = React.useRef<Map<string, { value: string; type?: string; disabled: boolean }>>(new Map());
+
   // 简化搜索值通知逻辑，避免不必要的调用
   const searchNotified = React.useRef("");
   React.useEffect(() => {
@@ -84,22 +84,22 @@ export const CommandRoot = React.forwardRef<
   // Update selected item's aria-selected attribute
   React.useEffect(() => {
     if (!listRef.current) return;
-    
+
     // Remove previous selection
     const prevSelected = listRef.current.querySelector('[aria-selected="true"]');
     if (prevSelected) {
-      prevSelected.setAttribute('aria-selected', 'false');
-      prevSelected.setAttribute('data-selected', 'false');
+      prevSelected.setAttribute("aria-selected", "false");
+      prevSelected.setAttribute("data-selected", "false");
     }
-    
+
     // Set new selection
     if (internalValue) {
       const newSelected = listRef.current.querySelector(`[${VALUE_ATTR}="${internalValue}"]`);
       if (newSelected) {
-        newSelected.setAttribute('aria-selected', 'true');
-        newSelected.setAttribute('data-selected', 'true');
+        newSelected.setAttribute("aria-selected", "true");
+        newSelected.setAttribute("data-selected", "true");
         // Scroll into view
-        newSelected.scrollIntoView({ block: 'nearest' });
+        newSelected.scrollIntoView({ block: "nearest" });
       }
     }
   }, [internalValue]);
@@ -108,19 +108,24 @@ export const CommandRoot = React.forwardRef<
     setInternalValue(newValue);
   }, []);
 
-  const registerItem = React.useCallback((
-    id: string, 
-    itemValue: string, 
-    _keywords?: string[], // Prefix with underscore to indicate intentionally unused
-    disabled?: boolean
-  ) => {
-    // Store item data (keywords could be used for enhanced search in the future)
-    itemsRef.current.set(id, { value: itemValue, disabled: disabled || false });
-    
-    return () => {
-      itemsRef.current.delete(id);
-    };
-  }, []);
+  const registerItem = React.useCallback(
+    (
+      id: string,
+      itemValue: string,
+      type?: string,
+      _keywords?: string[], // Prefix with underscore to indicate intentionally unused
+      disabled?: boolean,
+    ) => {
+      console.log("Registering item:", { id, itemValue, type, disabled, items: itemsRef.current });
+      // Store item data (keywords could be used for enhanced search in the future)
+      itemsRef.current.set(id, { value: itemValue, type, disabled: disabled || false });
+
+      return () => {
+        itemsRef.current.delete(id);
+      };
+    },
+    [],
+  );
 
   const getValidItems = React.useCallback(() => {
     return Array.from(listRef.current?.querySelectorAll(VALID_ITEM_SELECTOR) || []);
@@ -135,63 +140,80 @@ export const CommandRoot = React.forwardRef<
     }
   }, [getValidItems, setValue]);
 
-  const updateSelectedByItem = React.useCallback((change: 1 | -1) => {
-    const items = getValidItems();
-    const currentIndex = items.findIndex(item => 
-      item.getAttribute(VALUE_ATTR) === internalValue
-    );
-    
-    let newIndex = currentIndex + change;
-    
-    // Wrap around
-    if (newIndex < 0) newIndex = items.length - 1;
-    if (newIndex >= items.length) newIndex = 0;
-    
-    const newItem = items[newIndex];
-    if (newItem) {
-      const value = newItem.getAttribute(VALUE_ATTR);
-      if (value) setValue(value);
-    }
-  }, [getValidItems, internalValue, setValue]);
+  const updateSelectedByItem = React.useCallback(
+    (change: 1 | -1) => {
+      const items = getValidItems();
+      const currentIndex = items.findIndex((item) => item.getAttribute(VALUE_ATTR) === internalValue);
+
+      let newIndex = currentIndex + change;
+
+      // Wrap around
+      if (newIndex < 0) newIndex = items.length - 1;
+      if (newIndex >= items.length) newIndex = 0;
+
+      const newItem = items[newIndex];
+      if (newItem) {
+        const value = newItem.getAttribute(VALUE_ATTR);
+        if (value) setValue(value);
+      }
+    },
+    [getValidItems, internalValue, setValue],
+  );
+
+  const select = React.useCallback(
+    (id: string) => {
+      const item = itemsRef.current.get(id);
+      console.log("Selecting item:", { id, item, items: itemsRef.current });
+      if (item && !item.disabled) {
+        setValue(item.value);
+        onSelect?.(item.value, item.type);
+      }
+    },
+    [onSelect, setValue, itemsRef],
+  );
 
   // Keyboard navigation - 参考 cmdk 的实现
-  const handleKeyDown = React.useCallback((event: React.KeyboardEvent) => {
-    // IME 组合输入检测，参考 cmdk 实现
-    const isComposing = event.nativeEvent.isComposing || event.keyCode === 229;
-    
-    // 如果事件已被阻止或正在 IME 组合输入中，不处理键盘导航
-    if (event.defaultPrevented || isComposing) {
-      return;
-    }
-    
-    switch (event.key) {
-      case "ArrowDown": {
-        event.preventDefault();
-        updateSelectedByItem(1);
-        break;
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent) => {
+      // IME 组合输入检测，参考 cmdk 实现
+      const isComposing = event.nativeEvent.isComposing || event.keyCode === 229;
+
+      // 如果事件已被阻止或正在 IME 组合输入中，不处理键盘导航
+      if (event.defaultPrevented || isComposing) {
+        return;
       }
-      case "ArrowUp": {
-        event.preventDefault();
-        updateSelectedByItem(-1);
-        break;
-      }
-      case "Enter": {
-        event.preventDefault();
-        if (internalValue) {
-          onSelect?.(internalValue);
-        } else if (search.trim()) {
-          // 如果没有选择任何项目但有搜索内容，触发搜索
-          onSelect?.(search.trim());
+
+      switch (event.key) {
+        case "ArrowDown": {
+          event.preventDefault();
+          updateSelectedByItem(1);
+          break;
         }
-        break;
+        case "ArrowUp": {
+          event.preventDefault();
+          updateSelectedByItem(-1);
+          break;
+        }
+        case "Enter": {
+          event.preventDefault();
+          if (internalValue) {
+            console.log("Enter pressed, selecting:", internalValue);
+            select(internalValue);
+          } else if (search.trim()) {
+            // TODO: 如果没有选择任何项目但有搜索内容，触发搜索
+            // select(search.trim());
+          }
+          break;
+        }
+        case "Escape": {
+          event.preventDefault();
+          clearAll();
+          break;
+        }
       }
-      case "Escape": {
-        event.preventDefault();
-        clearAll();
-        break;
-      }
-    }
-  }, [updateSelectedByItem, internalValue, onSelect, clearAll, search]);
+    },
+    [updateSelectedByItem, internalValue, select, clearAll, search],
+  );
 
   // Auto-select first item when search changes and no current selection
   React.useEffect(() => {
@@ -202,17 +224,20 @@ export const CommandRoot = React.forwardRef<
     }
   }, [search, internalValue, selectFirstItem]);
 
-  const contextValue: CommandContextValue = React.useMemo(() => ({
-    value: internalValue,
-    setValue,
-    search,
-    setSearch,
-    clearAll,
-    registerItem,
-    listRef,
-    onSelect,
-    onValueChange,
-  }), [internalValue, setValue, search, setSearch, clearAll, registerItem, onSelect, onValueChange]);
+  const contextValue: CommandContextValue = React.useMemo(
+    () => ({
+      value: internalValue,
+      setValue,
+      search,
+      setSearch,
+      clearAll,
+      registerItem,
+      listRef,
+      onSelect,
+      onValueChange,
+    }),
+    [internalValue, setValue, search, setSearch, clearAll, registerItem, onSelect, onValueChange],
+  );
 
   return (
     <CommandContext.Provider value={contextValue}>
@@ -258,17 +283,20 @@ export const CommandInput = React.forwardRef<
     }
   }, [propValue, setSearch]);
 
-  const handleChange = React.useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    
-    if (isControlled) {
-      // 受控模式：通知父组件值变化
-      onValueChange?.(newValue);
-    } else {
-      // 非受控模式：直接更新内部状态
-      setSearch(newValue);
-    }
-  }, [isControlled, onValueChange, setSearch]);
+  const handleChange = React.useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+
+      if (isControlled) {
+        // 受控模式：通知父组件值变化
+        onValueChange?.(newValue);
+      } else {
+        // 非受控模式：直接更新内部状态
+        setSearch(newValue);
+      }
+    },
+    [isControlled, onValueChange, setSearch],
+  );
 
   return (
     <div data-slot="command-input-wrapper">
@@ -302,11 +330,11 @@ export const CommandList = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof Primitive.div>
 >(({ className, ...props }, ref) => {
   const { listRef } = useCommand();
-  
+
   return (
     <Primitive.div
       ref={(node) => {
-        if (typeof ref === 'function') ref(node);
+        if (typeof ref === "function") ref(node);
         else if (ref) ref.current = node;
         if (listRef && node) listRef.current = node;
       }}
@@ -357,7 +385,7 @@ export const CommandGroup = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof Primitive.div> & CommandGroupProps
 >(({ heading, className, children, ...props }, ref) => {
   const headingId = React.useId();
-  
+
   return (
     <Primitive.div
       ref={ref}
@@ -371,11 +399,7 @@ export const CommandGroup = React.forwardRef<
       {...props}
     >
       {heading && (
-        <div 
-          cmdk-group-heading="" 
-          aria-hidden 
-          id={headingId}
-        >
+        <div cmdk-group-heading="" aria-hidden id={headingId}>
           {heading}
         </div>
       )}
@@ -395,30 +419,31 @@ CommandGroup.displayName = "CommandGroup";
 export interface CommandItemProps {
   value?: string;
   disabled?: boolean;
-  onSelect?: (value: string) => void;
+  onSelect?: (value: string, type?: string) => void;
   keywords?: string[];
   children?: React.ReactNode;
+  type?: string; // 添加类型属性
 }
 
 export const CommandItem = React.forwardRef<
   React.ElementRef<typeof Primitive.div>,
   Omit<React.ComponentPropsWithoutRef<typeof Primitive.div>, "onSelect"> & CommandItemProps
->(({ value, className, disabled = false, onSelect, keywords, children, ...props }, ref) => {
+>(({ value, className, disabled = false, onSelect, keywords, children, type, ...props }, ref) => {
   const id = React.useId();
   const { registerItem, setValue, onSelect: contextOnSelect } = useCommand();
   const itemRef = React.useRef<HTMLDivElement>(null);
-  
+
   // Use value from props or generate from children
   const itemValue = React.useMemo(() => {
     if (value) return value;
-    if (typeof children === 'string') return children;
+    if (typeof children === "string") return children;
     return id; // fallback to unique id
   }, [value, children, id]);
 
   // Register this item
   React.useEffect(() => {
-    return registerItem(id, itemValue, keywords, disabled);
-  }, [registerItem, id, itemValue, keywords, disabled]);
+    return registerItem(value ?? id, itemValue, type, keywords, disabled);
+  }, [registerItem, value, itemValue, keywords, disabled, type, id]);
 
   // Combine refs
   React.useImperativeHandle(ref, () => itemRef.current!);
@@ -426,10 +451,10 @@ export const CommandItem = React.forwardRef<
   const handleClick = React.useCallback(() => {
     if (!disabled) {
       setValue(itemValue);
-      onSelect?.(itemValue);
-      contextOnSelect?.(itemValue);
+      onSelect?.(itemValue, type);
+      contextOnSelect?.(itemValue, type);
     }
-  }, [disabled, itemValue, onSelect, contextOnSelect, setValue]);
+  }, [disabled, itemValue, onSelect, contextOnSelect, setValue, type]);
 
   const handleMouseEnter = React.useCallback(() => {
     if (!disabled) {

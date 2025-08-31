@@ -62,6 +62,7 @@ export const SearchResultItem: React.FC<SearchResultItemProps> = ({
       value={result.id}
       data-url={result.url}
       data-type={result.type}
+      type="search"
       onSelect={() => onSelect(result)}
       className={`flex items-center gap-[8px] cursor-pointe ${className} first:mt-[8px] last:mb-1 min-h-[52px] group`}
     >
