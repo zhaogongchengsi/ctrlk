@@ -1,22 +1,32 @@
 import { Command } from "@/components/command";
 import SearchResultsList from "./components/search/SearchResultsList";
 import { LoaderOne } from "@/components/ui/loader";
-import { useState, useCallback, useRef, useEffect } from "react";
-import { openSearchResult, groupSearchResults, RxSearchManager } from "./search/search-api";
-import type { SearchResult } from "./search/search-api";
+import { useState, useRef, useEffect } from "react";
 import { useInputFocus, useDialogLifecycle } from "./hooks/useDialogLifecycle";
 import { useTheme } from "./hooks/useTheme";
+import { useSearch } from "./hooks/useSearch";
 import { cn } from "./lib/utils";
 
 function App() {
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [currentQuery, setCurrentQuery] = useState("");
   const [forceTheme, setForceTheme] = useState<"dark" | "light" | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const searchManagerRef = useRef<RxSearchManager | null>(null);
   const detectedTheme = useTheme();
   const theme = forceTheme || detectedTheme;
+
+  // 使用统一的搜索 hook，启用直接搜索功能
+  const {
+    loading,
+    groupedResults,
+    currentQuery,
+    performSearch,
+    handleResultSelect,
+    handleCommandSelect,
+    inputProps
+  } = useSearch({ 
+    debounceDelay: 300, 
+    minQueryLength: 2, 
+    enableDirectSearch: true 
+  });
 
   // 监听来自父页面的消息
   useEffect(() => {
@@ -53,32 +63,6 @@ function App() {
     };
   }, []);
 
-  // 初始化搜索管理器
-  useEffect(() => {
-    const searchManager = new RxSearchManager(300);
-    searchManagerRef.current = searchManager;
-
-    // 订阅搜索结果
-    const subscription = searchManager.subscribe(
-      (searchResults, query) => {
-        setResults(searchResults);
-        setCurrentQuery(query);
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Search error:", error);
-        setResults([]);
-        setLoading(false);
-      },
-    );
-
-    // 清理函数
-    return () => {
-      subscription.unsubscribe();
-      searchManager.destroy();
-    };
-  }, []);
-
   // 使用输入框聚焦 Hook
   useInputFocus(inputRef);
 
@@ -104,98 +88,6 @@ function App() {
     },
   });
 
-  const performSearch = useCallback((searchQuery: string) => {
-    if (!searchManagerRef.current) return;
-
-    // 更新当前查询状态（即使为空也要更新）
-    setCurrentQuery(searchQuery);
-
-    if (searchQuery.length < 2) {
-      setResults([]);
-      setLoading(false);
-      return;
-    }
-
-    // 只有在查询长度足够时才显示loading状态
-    setLoading(true);
-    searchManagerRef.current.search(searchQuery);
-  }, []);
-
-  const handleResultSelect = async (result: SearchResult) => {
-    console.log("handleResultSelect called with:", result);
-    try {
-      console.log("About to call openSearchResult for:", result.title);
-      await openSearchResult(result);
-      console.log("Successfully opened:", result.title);
-    } catch (error) {
-      console.error("Failed to open result:", error);
-    }
-  };
-
-  // 处理直接搜索（用于联想等情况）
-  const handleDirectSearch = useCallback(async (query: string) => {
-    try {
-      const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-
-      // 在这里我们需要通过 chrome API 打开新标签页
-      // 由于这是在 content script 中，我们需要发送消息给 background script
-      const openRequest = {
-        type: "OPEN_SEARCH_RESULT",
-        result: {
-          id: `direct-search-${Date.now()}`,
-          type: "suggestion" as const,
-          title: query,
-          url: googleSearchUrl,
-          suggestion: query,
-        },
-      };
-
-      const response = await chrome.runtime.sendMessage(openRequest);
-      if (response?.success) {
-        console.log("Opened direct search for:", query);
-      } else {
-        console.error("Failed to open direct search:", response?.error);
-      }
-    } catch (error) {
-      console.error("Failed to perform direct search:", error);
-    }
-  }, []);
-
-  // 处理 Command 组件的选择事件（回车键触发）
-  const handleCommandSelect = useCallback(
-    async (value: string) => {
-      console.log("handleCommandSelect called with value:", value);
-      
-      // 根据 value 查找对应的搜索结果
-      const selectedResult = results.find((result) => result.id === value);
-
-      console.log("Selected result:", { 
-        value, 
-        selectedResult, 
-        resultsCount: results.length,
-        allResultIds: results.map(r => r.id)
-      });
-
-      if (selectedResult) {
-        console.log("Calling handleResultSelect for:", selectedResult.title);
-        await handleResultSelect(selectedResult);
-      } else {
-        // 如果没有找到结果，检查是否是联想搜索
-        if (currentQuery.trim()) {
-          console.log("No result found, performing direct search for:", currentQuery.trim());
-          // 直接在 Google 中搜索当前查询
-          await handleDirectSearch(currentQuery.trim());
-        } else {
-          console.log("No query to search for");
-        }
-      }
-    },
-    [results, currentQuery, handleDirectSearch],
-  );
-
-  // 分组搜索结果
-  const groupedResults = groupSearchResults(results);
-
   // 根据主题选择样式
   const wrapperClassName =
     theme === "dark"
@@ -209,7 +101,11 @@ function App() {
         onValueChange={performSearch}
         onSelect={handleCommandSelect}
       >
-        <Command.Input ref={inputRef} placeholder="搜索书签、标签页、历史记录和建议..." />
+        <Command.Input 
+          ref={inputRef} 
+          placeholder="搜索书签、标签页、历史记录和建议..."
+          {...inputProps}
+        />
         <div className="ctrlk-raycast-loader" />
         {loading ? (
           <div className="flex h-40 items-center justify-center">
