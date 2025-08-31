@@ -130,6 +130,18 @@ function App() {
     }
   };
 
+  // 处理 Command 组件的选择事件（回车键触发）
+  const handleCommandSelect = useCallback(async (value: string) => {
+    // 根据 value 查找对应的搜索结果
+    const selectedResult = results.find(result => result.id === value);
+    if (selectedResult) {
+      await handleResultSelect(selectedResult);
+    } else {
+      // 如果没有找到结果，可能是直接搜索
+      console.log("Direct search for:", value);
+    }
+  }, [results]);
+
   // 分组搜索结果
   const groupedResults = groupSearchResults(results);
 
@@ -141,7 +153,11 @@ function App() {
 
   return (
     <div className={cn("w-full md:w-200 mx-auto min-h-[400px]", wrapperClassName)}>
-      <Command.Root className="w-full h-full min-h-[400px]" onValueChange={performSearch}>
+      <Command.Root 
+        className="w-full h-full min-h-[400px]" 
+        onValueChange={performSearch}
+        onSelect={handleCommandSelect}
+      >
         <Command.Input ref={inputRef} placeholder="搜索书签、标签页、历史记录和建议..." />
         <div className="ctrlk-raycast-loader" />
         {loading ? (

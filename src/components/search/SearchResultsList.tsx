@@ -50,23 +50,33 @@ export default function SearchResultsList({
         showSeparator={false}
       />
 
+      {/* 搜索建议组 */}
+      <SearchResultGroup
+        title="搜索建议"
+        icon="�"
+        results={suggestions}
+        onSelectResult={onSelectResult}
+        maxResults={Math.min(maxResultsPerGroup, 5)} // 限制搜索建议数量
+        showSeparator={false}
+      />
+
       {/* 历史记录组 */}
       <SearchResultGroup
         title="历史记录"
-        icon="📚"
+        icon="�"
         results={history}
         onSelectResult={onSelectResult}
         maxResults={maxResultsPerGroup}
         showSeparator={false}
       />
 
-      {/* 搜索建议组 */}
+      {/* 搜索建议组 - 优先显示 */}
       <SearchResultGroup
         title="搜索建议"
-        icon="🔍"
+        icon="�"
         results={suggestions}
         onSelectResult={onSelectResult}
-        maxResults={maxResultsPerGroup}
+        maxResults={Math.min(maxResultsPerGroup, 5)} // 限制搜索建议数量
         showSeparator={false}
       />
     </Command.List>

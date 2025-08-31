@@ -179,6 +179,9 @@ export const CommandRoot = React.forwardRef<
         event.preventDefault();
         if (internalValue) {
           onSelect?.(internalValue);
+        } else if (search.trim()) {
+          // 如果没有选择任何项目但有搜索内容，触发搜索
+          onSelect?.(search.trim());
         }
         break;
       }
@@ -188,7 +191,7 @@ export const CommandRoot = React.forwardRef<
         break;
       }
     }
-  }, [updateSelectedByItem, internalValue, onSelect, clearAll]);
+  }, [updateSelectedByItem, internalValue, onSelect, clearAll, search]);
 
   // Auto-select first item when search changes and no current selection
   React.useEffect(() => {
