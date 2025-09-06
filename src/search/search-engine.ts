@@ -66,7 +66,7 @@ export class SearchEngine {
   private fuse: Fuse<IndexDocument> | null = null;
   private documents: IndexDocument[] = [];
   private isInitialized = false;
-  
+
   // 分析缓存相关属性
   private analyticsCache: Record<string, AnalyticsData> = {};
 
@@ -94,13 +94,11 @@ export class SearchEngine {
         }
       ]
     };
-    
+
     this.fuse = new Fuse(this.documents, fuseOptions);
   }
 
   async buildIndex(): Promise<void> {
-    console.log('Building search index...');
-    
     try {
       // 并行获取书签、标签页和历史记录数据
       const [bookmarks, tabs, history] = await Promise.all([
@@ -196,39 +194,14 @@ export class SearchEngine {
     }
 
     const cleanQuery = query.trim();
-    
+
     // 应用最小查询长度限制
     if (cleanQuery.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) {
       return [];
     }
 
     try {
-      // 并行执行本地搜索和 Google 搜索建议
-      const [localResults, googleSuggestions] = await Promise.all([
-        this.searchLocal(cleanQuery, limit),
-        this.getGoogleSuggestions(cleanQuery)
-      ]);
-
-      // 合并结果
-      const allResults = [...localResults];
-
-      // 添加 Google 搜索建议，给予较低的分数
-      googleSuggestions.forEach((suggestion: string, index: number) => {
-        if (suggestion !== cleanQuery) { // 不包含原始查询
-          allResults.push({
-            id: `suggestion-${index}`,
-            type: "suggestion",
-            title: suggestion,
-            url: `https://www.google.com/search?q=${encodeURIComponent(suggestion)}`,
-            suggestion: suggestion,
-            score: 10 + (googleSuggestions.length - index), // 基础分数较低
-            snippet: `搜索建议: ${suggestion}`,
-            favicon: "https://www.google.com/favicon.ico"
-          });
-        }
-      });
-
-      return allResults
+      return this.searchLocal(cleanQuery, limit)
         .sort((a, b) => (b.score || 0) - (a.score || 0))
         .slice(0, limit);
     } catch (error) {
@@ -245,14 +218,14 @@ export class SearchEngine {
     }
 
     const cleanQuery = query.toLowerCase();
-    
+
     // 应用最小查询长度限制
     if (cleanQuery.length < SEARCH_CONFIG.MIN_QUERY_LENGTH) {
       return [];
     }
 
     try {
-      
+
       // 使用Fuse.js进行多种搜索策略
       const searchStrategies = [
         // 1. 精确搜索
@@ -282,14 +255,14 @@ export class SearchEngine {
           for (const fuseResult of fuseResults) {
             const doc = fuseResult.item;
             const fuseScore = fuseResult.score || 0;
-            
+
             const existingResult = allResults.get(doc.id);
-            
+
             // 计算综合分数（结合Fuse分数和自定义分数）
             const customScore = this.calculateScore(cleanQuery, doc, strategy.boost);
             const fuseWeight = (1 - fuseScore) * 100; // Fuse分数越低越好，转换为越高越好
             const finalScore = customScore + fuseWeight;
-            
+
             if (!existingResult || finalScore > (existingResult.score || 0)) {
               const highlights = this.extractHighlights(fuseResult);
               const result: SearchResult = {
@@ -306,7 +279,7 @@ export class SearchEngine {
                   visitCount: doc.visitCount
                 })
               };
-              
+
               allResults.set(doc.id, result);
             }
           }
@@ -318,7 +291,7 @@ export class SearchEngine {
       // 转换为数组并应用智能排序
       const searchResults = Array.from(allResults.values());
       const uniqueResults = this.deduplicateResults(searchResults);
-      
+
       // 应用增强的排序算法
       return this.applySortingOptimization(uniqueResults, cleanQuery, limit);
     } catch (error) {
@@ -332,27 +305,27 @@ export class SearchEngine {
    */
   private applySortingOptimization(results: SearchResult[], query: string, limit: number): SearchResult[] {
     const queryLower = query.toLowerCase();
-    
+
     // 1. 先进行基础分组和优先级调整
     const optimizedResults = results.map(result => {
       let adjustedScore = result.score || 0;
       const titleLower = result.title.toLowerCase();
-      
+
       // 精确匹配获得最高优先级
       if (titleLower === queryLower) {
         adjustedScore += 1000;
       }
-      
+
       // 标题开头匹配获得高优先级
       else if (titleLower.startsWith(queryLower)) {
         adjustedScore += 500;
       }
-      
+
       // 包含完整查询词的优先级
       else if (titleLower.includes(queryLower)) {
         adjustedScore += 200;
       }
-      
+
       // URL域名匹配加分
       try {
         const domain = new URL(result.url).hostname.toLowerCase();
@@ -362,7 +335,7 @@ export class SearchEngine {
       } catch {
         // 忽略URL解析错误
       }
-      
+
       // 类型优先级调整
       switch (result.type) {
         case 'tab':
@@ -378,7 +351,7 @@ export class SearchEngine {
           adjustedScore -= 50; // 搜索建议较低优先级
           break;
       }
-      
+
       // 用户习惯优化（异步但不阻塞）
       this.applyUserHabitOptimization(result).then(habitBoost => {
         if (habitBoost > 0) {
@@ -387,18 +360,18 @@ export class SearchEngine {
       }).catch(() => {
         // 静默失败，不影响基础搜索
       });
-      
+
       // 尝试同步获取用户习惯加成（使用缓存）
       const habitBoost = this.getQuickUserHabitBoost(result);
       adjustedScore += habitBoost;
-      
+
       // 历史记录特殊处理
       if (result.type === 'history') {
         // 访问频率加分
         if (result.visitCount && result.visitCount > 1) {
           adjustedScore += Math.min(result.visitCount * 5, 100);
         }
-        
+
         // 最近访问时间加分
         if (result.lastVisitTime) {
           const daysSinceVisit = (Date.now() - result.lastVisitTime) / (24 * 60 * 60 * 1000);
@@ -411,7 +384,7 @@ export class SearchEngine {
           }
         }
       }
-      
+
       // 标题长度优化（较短的标题通常更相关）
       const titleLength = result.title.length;
       if (titleLength < 30) {
@@ -419,14 +392,14 @@ export class SearchEngine {
       } else if (titleLength > 80) {
         adjustedScore -= 10;
       }
-      
+
       return {
         ...result,
         score: adjustedScore,
         originalScore: result.score || 0
       };
     });
-    
+
     // 2. 多层级排序
     const sortedResults = optimizedResults.sort((a, b) => {
       // 首先按调整后的分数排序
@@ -434,23 +407,23 @@ export class SearchEngine {
       if (Math.abs(scoreDiff) > 10) {
         return scoreDiff;
       }
-      
+
       // 分数相近时，应用细致的排序规则
-      
+
       // 精确匹配优先
       const aExactMatch = a.title.toLowerCase() === queryLower;
       const bExactMatch = b.title.toLowerCase() === queryLower;
       if (aExactMatch !== bExactMatch) {
         return aExactMatch ? -1 : 1;
       }
-      
+
       // 开头匹配优先
       const aStartsWithQuery = a.title.toLowerCase().startsWith(queryLower);
       const bStartsWithQuery = b.title.toLowerCase().startsWith(queryLower);
       if (aStartsWithQuery !== bStartsWithQuery) {
         return aStartsWithQuery ? -1 : 1;
       }
-      
+
       // 类型优先级
       const typeOrder = { tab: 0, bookmark: 1, history: 2, suggestion: 3 };
       const aTypeOrder = typeOrder[a.type] || 999;
@@ -458,7 +431,7 @@ export class SearchEngine {
       if (aTypeOrder !== bTypeOrder) {
         return aTypeOrder - bTypeOrder;
       }
-      
+
       // 对于历史记录，按访问时间和频率排序
       if (a.type === 'history' && b.type === 'history') {
         // 优先按访问频率
@@ -467,7 +440,7 @@ export class SearchEngine {
         if (aVisitCount !== bVisitCount) {
           return bVisitCount - aVisitCount;
         }
-        
+
         // 然后按最近访问时间
         const aLastVisit = a.lastVisitTime || 0;
         const bLastVisit = b.lastVisitTime || 0;
@@ -475,49 +448,27 @@ export class SearchEngine {
           return bLastVisit - aLastVisit;
         }
       }
-      
+
       // 最后按标题长度排序（短标题优先）
       return a.title.length - b.title.length;
     });
-    
+
     // 3. 返回限制数量的结果
     return sortedResults.slice(0, limit);
   }
 
-  private async getGoogleSuggestions(query: string): Promise<string[]> {
-    try {
-      const encodedQuery = encodeURIComponent(query);
-      const url = `https://suggestqueries.google.com/complete/search?client=firefox&q=${encodedQuery}`;
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.warn('Failed to fetch Google suggestions:', response.statusText);
-        return [];
-      }
 
-      const data = await response.json() as [string, string[]];
-      const suggestions = data[1] || [];
-      
-      // 过滤和限制建议数量
-      return suggestions
-        .filter((suggestion: string) => suggestion && suggestion.trim().toLowerCase() !== query.toLowerCase())
-        .slice(0, 5); // 最多返回5个建议
-    } catch (error) {
-      console.warn('Error fetching Google suggestions:', error);
-      return [];
-    }
-  }
 
   private async getBookmarks(): Promise<BookmarkData[]> {
     return new Promise((resolve) => {
       chrome.bookmarks.getTree((bookmarkTreeNodes) => {
         const bookmarks: BookmarkData[] = [];
-        
+
         const traverse = (nodes: chrome.bookmarks.BookmarkTreeNode[]) => {
           for (const node of nodes) {
             if (node.url) {
               bookmarks.push({
-				id: node.id,
+                id: node.id,
                 title: node.title || 'Untitled',
                 url: node.url
               });
@@ -540,12 +491,12 @@ export class SearchEngine {
         const tabData: TabData[] = tabs
           .filter(tab => tab.id !== undefined && tab.url)
           .map(tab => ({
-			id: `${tab.id!}`,
+            id: `${tab.id!}`,
             title: tab.title || 'Untitled',
             url: tab.url!,
             favIconUrl: tab.favIconUrl
           }));
-        
+
         resolve(tabData);
       });
     });
@@ -555,7 +506,7 @@ export class SearchEngine {
     return new Promise((resolve) => {
       // 获取最近 1000 条历史记录，最多30天内的
       const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-      
+
       chrome.history.search({
         text: '',
         startTime: thirtyDaysAgo,
@@ -572,13 +523,13 @@ export class SearchEngine {
           }))
           // 按访问时间排序，最新的在前
           .sort((a, b) => b.lastVisitTime - a.lastVisitTime);
-        
+
         // 对历史记录进行域名去重
         const deduplicatedHistory = this.deduplicateHistoryByDomain(
-          historyData, 
+          historyData,
           SEARCH_CONFIG.HISTORY.MAX_PER_DOMAIN
         );
-        
+
         resolve(deduplicatedHistory);
       });
     });
@@ -590,17 +541,17 @@ export class SearchEngine {
   private deduplicateHistoryByDomain(historyData: HistoryData[], maxPerDomain = SEARCH_CONFIG.HISTORY.MAX_PER_DOMAIN): HistoryData[] {
     const domainCounts = new Map<string, number>();
     const result: HistoryData[] = [];
-    
+
     for (const item of historyData) {
       const domain = this.extractMainDomain(item.url);
       const currentCount = domainCounts.get(domain) || 0;
-      
+
       if (currentCount < maxPerDomain) {
         result.push(item);
         domainCounts.set(domain, currentCount + 1);
       }
     }
-    
+
     return result;
   }
 
@@ -611,23 +562,23 @@ export class SearchEngine {
     try {
       const urlObj = new URL(url);
       const hostname = urlObj.hostname.toLowerCase();
-      
+
       // 移除常见的子域名前缀
       const parts = hostname.split('.');
       if (parts.length >= 2) {
         // 对于常见的顶级域名组合，保留主域名 + 顶级域名
         const tld = parts[parts.length - 1];
         const domain = parts[parts.length - 2];
-        
+
         // 处理二级域名的情况（如 .co.uk, .com.cn 等）
         const commonSecondLevelDomains = ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'];
         if (parts.length >= 3 && commonSecondLevelDomains.includes(domain)) {
           return `${parts[parts.length - 3]}.${domain}.${tld}`;
         }
-        
+
         return `${domain}.${tld}`;
       }
-      
+
       return hostname;
     } catch {
       // 如果URL解析失败，返回原始URL作为域名
@@ -635,7 +586,7 @@ export class SearchEngine {
     }
   }
 
-    private calculateScore(query: string, doc: IndexDocument, boost = 1): number {
+  private calculateScore(query: string, doc: IndexDocument, boost = 1): number {
     const queryLower = query.toLowerCase();
     const titleLower = doc.title.toLowerCase();
     const urlLower = doc.url.toLowerCase();
@@ -658,7 +609,7 @@ export class SearchEngine {
     // 单词匹配加分
     const queryWords = queryLower.split(/\s+/).filter(w => w.length > 1);
     const titleWords = titleLower.split(/\s+/);
-    
+
     for (const queryWord of queryWords) {
       for (const titleWord of titleWords) {
         if (titleWord === queryWord) {
@@ -686,7 +637,7 @@ export class SearchEngine {
       if (doc.visitCount && doc.visitCount > 1) {
         score += Math.min(doc.visitCount * 2, 20); // 访问次数加分，最多20分
       }
-      
+
       if (doc.lastVisitTime) {
         const daysSinceVisit = (Date.now() - doc.lastVisitTime) / (24 * 60 * 60 * 1000);
         if (daysSinceVisit < 1) {
@@ -695,7 +646,7 @@ export class SearchEngine {
           score += 5; // 一周内访问过
         }
       }
-      
+
       score += 5; // 历史记录基础分
     } else if (doc.type === "bookmark") {
       score += 10; // 书签中等优先级
@@ -719,7 +670,7 @@ export class SearchEngine {
       const urlObj = new URL(url);
       const domain = urlObj.hostname.replace('www.', '');
       const path = urlObj.pathname.replace(/[/\-_]/g, ' ');
-      
+
       return `${title} ${domain} ${path}`.toLowerCase().trim();
     } catch {
       return `${title} ${url}`.toLowerCase().trim();
@@ -729,19 +680,19 @@ export class SearchEngine {
   private generateSnippet(query: string, doc: IndexDocument, maxLength = 100): string {
     const text = `${doc.title} ${doc.url}`.toLowerCase();
     const queryLower = query.toLowerCase();
-    
+
     const index = text.indexOf(queryLower);
     if (index === -1) {
       return doc.title.substring(0, maxLength);
     }
-    
+
     const start = Math.max(0, index - 20);
     const end = Math.min(text.length, index + queryLower.length + 20);
-    
+
     let snippet = text.substring(start, end);
     if (start > 0) snippet = '...' + snippet;
     if (end < text.length) snippet = snippet + '...';
-    
+
     return snippet.substring(0, maxLength);
   }
 
@@ -775,13 +726,13 @@ export class SearchEngine {
       if (type === 'history') {
         // 历史记录按域名去重
         deduplicatedResults.push(...this.deduplicateResultsByDomain(
-          typeResults, 
+          typeResults,
           SEARCH_CONFIG.DOMAIN_DEDUPLICATION.HISTORY_MAX_PER_DOMAIN
         ));
       } else if (type === 'bookmark') {
         // 书签按域名去重，但允许更多
         deduplicatedResults.push(...this.deduplicateResultsByDomain(
-          typeResults, 
+          typeResults,
           SEARCH_CONFIG.DOMAIN_DEDUPLICATION.BOOKMARK_MAX_PER_DOMAIN
         ));
       } else {
@@ -806,26 +757,26 @@ export class SearchEngine {
     const domainCounts = new Map<string, number>();
     const seen = new Set<string>();
     const deduplicatedResults: SearchResult[] = [];
-    
+
     // 按分数排序，确保高分结果优先
     const sortedResults = results.sort((a, b) => (b.score || 0) - (a.score || 0));
-    
+
     for (const result of sortedResults) {
       // 跳过重复的ID
       if (seen.has(result.id)) {
         continue;
       }
-      
+
       const domain = this.extractMainDomain(result.url);
       const currentCount = domainCounts.get(domain) || 0;
-      
+
       if (currentCount < maxPerDomain) {
         deduplicatedResults.push(result);
         domainCounts.set(domain, currentCount + 1);
         seen.add(result.id);
       }
     }
-    
+
     return deduplicatedResults;
   }
 
@@ -843,18 +794,18 @@ export class SearchEngine {
     try {
       const domain = this.extractMainDomain(result.url);
       const analytics = this.analyticsCache[domain];
-      
+
       if (!analytics) {
         return 0;
       }
-      
+
       let boost = 0;
-      
+
       // 基于访问频率的快速加成
       if (analytics.visitCount && analytics.visitCount > 0) {
         boost += Math.min(Math.log(analytics.visitCount + 1) * 2, 20);
       }
-      
+
       // 基于最近访问的快速加成
       if (analytics.lastVisit) {
         const daysSinceVisit = (Date.now() - analytics.lastVisit) / (24 * 60 * 60 * 1000);
@@ -866,7 +817,7 @@ export class SearchEngine {
           boost += 5; // 一个月内访问过
         }
       }
-      
+
       return Math.floor(boost);
     } catch {
       return 0;

@@ -23,7 +23,8 @@ export interface RecommendationConfig {
 
 const DEFAULT_CONFIG: RecommendationConfig = {
   maxRecommendations: 6,
-  includeCurrentTabs: true,
+  // 默认关掉 tabs 推荐
+  includeCurrentTabs: false,
   includeHistory: true,
   includeBookmarks: true,
   minVisitCount: 3,
@@ -78,9 +79,9 @@ export class RecommendationEngine {
    */
   private async generateTabRecommendations(): Promise<RecommendationItem[]> {
     try {
-      const tabs = await chrome.tabs.query({ 
-        currentWindow: true, 
-        url: ["http://*/*", "https://*/*"] 
+      const tabs = await chrome.tabs.query({
+        currentWindow: true,
+        url: ["http://*/*", "https://*/*"]
       });
 
       const currentTab = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -114,7 +115,7 @@ export class RecommendationEngine {
 
     // 从analytics数据中筛选符合条件的网站
     const eligibleSites = Object.values(websiteStats)
-      .filter(stats => 
+      .filter(stats =>
         stats.visitCount >= this.config.minVisitCount &&
         stats.lastVisit >= recentThreshold
       )
@@ -193,17 +194,17 @@ export class RecommendationEngine {
   private calculateHistoryScore(stats: WebsiteStats): number {
     const now = Date.now();
     const daysSinceLastVisit = (now - stats.lastVisit) / (24 * 60 * 60 * 1000);
-    
+
     // 基础分数：访问频率评分
     let score = stats.frequencyScore;
-    
+
     // 访问次数加分
     score += Math.min(stats.visitCount * 2, 50);
-    
+
     // 平均停留时长加分
     const avgDurationMinutes = stats.averageDuration / (60 * 1000);
     score += Math.min(avgDurationMinutes, 30);
-    
+
     // 最近访问时间加分
     if (daysSinceLastVisit < 1) {
       score += 40; // 今天访问过
@@ -212,10 +213,10 @@ export class RecommendationEngine {
     } else if (daysSinceLastVisit < 30) {
       score += 10; // 一个月内访问过
     }
-    
+
     // 最近访问频率加分
     score += Math.min(stats.recentVisits * 3, 30);
-    
+
     return Math.round(score);
   }
 
@@ -225,7 +226,7 @@ export class RecommendationEngine {
   private generateHistoryReason(stats: WebsiteStats): string {
     const now = Date.now();
     const daysSinceLastVisit = (now - stats.lastVisit) / (24 * 60 * 60 * 1000);
-    
+
     if (daysSinceLastVisit < 1) {
       return `今天访问过 • ${stats.visitCount} 次访问`;
     } else if (daysSinceLastVisit < 7) {
@@ -242,7 +243,7 @@ export class RecommendationEngine {
    */
   private extractBookmarks(bookmarkTree: chrome.bookmarks.BookmarkTreeNode[]): chrome.bookmarks.BookmarkTreeNode[] {
     const bookmarks: chrome.bookmarks.BookmarkTreeNode[] = [];
-    
+
     const traverse = (nodes: chrome.bookmarks.BookmarkTreeNode[]) => {
       for (const node of nodes) {
         if (node.url) {
@@ -253,7 +254,7 @@ export class RecommendationEngine {
         }
       }
     };
-    
+
     traverse(bookmarkTree);
     return bookmarks;
   }
@@ -264,7 +265,7 @@ export class RecommendationEngine {
   private sortAndLimitRecommendations(recommendations: RecommendationItem[]): RecommendationItem[] {
     // 按分数排序
     const sorted = recommendations.sort((a, b) => b.score - a.score);
-    
+
     // 去重（基于URL）
     const urlSet = new Set<string>();
     const deduped = sorted.filter(item => {
@@ -274,7 +275,7 @@ export class RecommendationEngine {
       urlSet.add(item.url);
       return true;
     });
-    
+
     // 限制数量
     return deduped.slice(0, this.config.maxRecommendations);
   }
